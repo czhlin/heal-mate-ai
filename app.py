@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
+import time
 
 # 加载环境变量
 load_dotenv()
@@ -11,7 +12,6 @@ load_dotenv()
 # 配置 DeepSeek API
 api_key = os.getenv("DEEPSEEK_API_KEY")
 if not api_key:
-    # 如果没有 key，提供一个默认值防止初始化崩溃，实际调用时会报错并被捕获
     api_key = "dummy_key"
 
 client = OpenAI(
@@ -25,32 +25,15 @@ st.set_page_config(page_title="AI健康管家", layout="centered")
 # 添加自定义 CSS 优化界面
 st.markdown("""
     <style>
-    /* 调整主标题大小 */
     .main-title {
-        font-size: 3rem !important;
+        font-size: 2.5rem !important;
         font-weight: 700;
         color: #0E1117;
         margin-bottom: 1rem;
+        text-align: center;
     }
-    /* 表单输入框标签字体变大 */
-    .stNumberInput label, .stSelectbox label {
-        font-size: 1.2rem !important;
-        font-weight: 600 !important;
-    }
-    /* 优化表单容器 */
-    [data-testid="stForm"] {
-        border: 2px solid #f0f2f6;
-        border-radius: 15px;
-        padding: 2rem;
-        background-color: #ffffff;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    /* 按钮样式优化 */
-    .stButton button {
-        width: 100%;
-        border-radius: 10px;
-        height: 3rem;
-        font-size: 1.1rem !important;
+    .chat-container {
+        padding-bottom: 100px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -59,11 +42,15 @@ st.markdown("""
 with st.sidebar:
     st.header("📖 使用说明")
     st.markdown("""
-    1. **填写信息**：在右侧表单输入您的基本体质数据。
-    2. **设定目标**：选择您希望达到的健康目标。
-    3. **生成方案**：点击“生成健康方案”按钮，AI 将为您定制计划。
-    4. **保存结果**：您可以查看生成的方案并点击复制按钮保存。
+    欢迎使用 HealMate-AI！
+    请在聊天框中与我对话，我会一步步了解你的情况。
+    收集完信息后，我将为你量身定制一份可执行的健康方案。
+    
+    如果你想重新开始，请点击下方按钮。
     """)
+    if st.button("🔄 重新开始对话"):
+        st.session_state.clear()
+        st.rerun()
     
     st.markdown("---")
     st.header("⚠️ 免责声明")
@@ -72,139 +59,175 @@ with st.sidebar:
     在开始任何新的饮食或运动计划之前，请务必咨询专业医生的意见。
     """)
 
+# 定义对话步骤和问题
+QUESTIONS = [
+    {
+        "key": "basic_info",
+        "question": "你好，我是你的AI健康管家。我想先了解一下你的基本情况，可以吗？\n\n请告诉我你的**身高、体重、年龄和性别**。（例如：170cm, 65kg, 25岁, 男）",
+        "reply": "收到！了解了你的基本身体数据。"
+    },
+    {
+        "key": "goal",
+        "question": "接下来，你的**健康目标**是什么呢？（例如：减肥 / 增肌 / 保持健康）",
+        "reply": "好的，目标很明确！我会牢记在心。"
+    },
+    {
+        "key": "diet",
+        "question": "你平时的**饮食方式**是怎样的？（例如：自己做饭 / 外卖为主 / 混合）",
+        "reply": "明白了，这决定了我们后续的饮食建议方向。"
+    },
+    {
+        "key": "allergies",
+        "question": "安全第一！你有任何**食物过敏或不耐受**吗？（例如：乳糖不耐受 / 对花生过敏 / 没有）",
+        "reply": "已记录。我会避开这些让你不舒服的食物。"
+    },
+    {
+        "key": "grocery",
+        "question": "你平时主要在**哪里买菜**呢？（例如：大型超市 / 菜市场 / 线上买菜平台）",
+        "reply": "这很有用，这样我推荐的食材你会更容易买到。"
+    },
+    {
+        "key": "kitchenware",
+        "question": "你**家里有什么厨具**呢？（例如：只有电饭煲 / 有空气炸锅和微波炉 / 厨具齐全）",
+        "reply": "太棒了，我会根据你的厨具来设计食谱。"
+    },
+    {
+        "key": "cooking_time",
+        "question": "最后一个问题：你每天能抽出**多少时间做饭**？（例如：只有20分钟 / 周末才有空 / 每天1小时）",
+        "reply": "感谢你的分享！所有信息已收集完毕。"
+    }
+]
+
+def init_session_state():
+    if "messages" not in st.session_state:
+        # 添加开场白
+        st.session_state.messages = [
+            {"role": "assistant", "content": QUESTIONS[0]["question"]}
+        ]
+    if "current_step" not in st.session_state:
+        st.session_state.current_step = 0
+    if "user_data" not in st.session_state:
+        st.session_state.user_data = {}
+    if "plan_generated" not in st.session_state:
+        st.session_state.plan_generated = False
+
+init_session_state()
+
 def save_to_history(input_data, output_text):
-    """
-    将用户输入和方案保存到本地 JSON 文件
-    """
     history_file = "history.json"
-    
-    # 构造单条记录
     record = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "input": input_data,
         "output": output_text
     }
-    
-    # 读取现有记录
     history_list = []
     if os.path.exists(history_file):
         try:
             with open(history_file, "r", encoding="utf-8") as f:
                 history_list = json.load(f)
         except (json.JSONDecodeError, IOError):
-            history_list = []
-            
-    # 追加新记录
+            pass
     history_list.append(record)
-    
-    # 保存回文件
     try:
         with open(history_file, "w", encoding="utf-8") as f:
             json.dump(history_list, f, ensure_ascii=False, indent=4)
     except IOError as e:
-        st.error(f"保存历史记录失败: {str(e)}")
+        print(f"保存历史记录失败: {str(e)}")
 
-def generate_plan(height, weight, age, gender, goal, diet):
-    """
-    调用 DeepSeek API 生成个性化健康方案
-    """
-    prompt = f"""你是一位专业的营养师。根据以下用户信息生成个性化健康方案，包括饮食建议、饮水目标、睡眠建议和运动建议。请用分段形式，每段开头用【饮食】【饮水】【睡眠】【运动】标注。
+def generate_plan(user_data):
+    prompt = f"""你是一位充满同理心、专业的AI健康管家。根据以下用户的详细信息生成高度个性化的健康方案。
+请用分段形式，每段开头用【饮食】【饮水】【睡眠】【运动】标注。
 
-用户信息：
-- 身高：{height} cm
-- 体重：{weight} kg
-- 年龄：{age} 岁
-- 性别：{gender}
-- 健康目标：{goal}
-- 饮食方式：{diet}
+【用户信息】
+- 基本身体数据：{user_data.get('basic_info', '未提供')}
+- 健康目标：{user_data.get('goal', '未提供')}
+- 饮食方式：{user_data.get('diet', '未提供')}
+- 过敏/不耐受：{user_data.get('allergies', '无')}
+- 买菜渠道：{user_data.get('grocery', '未提供')}
+- 现有厨具：{user_data.get('kitchenware', '未提供')}
+- 做饭时间：{user_data.get('cooking_time', '未提供')}
 
-要求：
-1. 饮食要具体到食材（考虑用户饮食方式）。
-2. 饮水用杯数表达。
-3. 睡眠给具体时间。
-4. 运动给具体动作或时长。
-5. 最后加一句鼓励的话。
+【方案要求】
+1. 饮食：必须具体到食材。如果用户外卖为主，教他如何点外卖；如果自己做饭，结合他的【买菜渠道】、【现有厨具】和【做饭时间】给出极具实操性的建议。绝对避开【过敏/不耐受】的食物。
+2. 饮水：用具体的杯数（如250ml/杯）表达目标，结合时间点提醒。
+3. 睡眠：给具体的入睡和起床时间区间，以及睡前小建议。
+4. 运动：结合目标，给出具体动作、时长或频次（考虑场地限制，如果是居家可以推荐徒手动作）。
+5. 态度：要温暖、包容。在结尾加一段特别鼓励的话，告诉用户“慢慢来，即使中断了也没关系，重启比坚持更勇敢”。
 """
     try:
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
-                {"role": "system", "content": "你是一个专业的健康管理专家。"},
+                {"role": "system", "content": "你是一个温暖、专业、接纳用户一切限制的健康管家。"},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.5,
+            temperature=0.6,
             stream=False
         )
         return response.choices[0].message.content
     except Exception as e:
         raise Exception(f"API 调用失败: {str(e)}")
 
-# 主页面标题
+# 页面标题
 st.markdown('<h1 class="main-title">AI健康管家 🩺</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
-# 检查 API Key 是否配置
+# 检查 API Key
 if api_key == "dummy_key":
     st.error("⚠️ 未检测到 DEEPSEEK_API_KEY。请在环境变量中配置后重试。")
-    st.stop()  # 停止执行后续代码
+    st.stop()
 
-# 创建表单
-with st.form("health_info_form"):
-    st.subheader("请输入您的基本信息")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        height = st.number_input("身高 (cm)", min_value=50, max_value=250, value=170, step=1)
-        age = st.number_input("年龄", min_value=1, max_value=120, value=25, step=1)
-    with col2:
-        weight = st.number_input("体重 (kg)", min_value=10.0, max_value=300.0, value=65.0, step=0.1)
-        gender = st.selectbox("性别", options=["男", "女"])
+# 渲染聊天记录
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-    st.markdown("---")
-    st.subheader("生活习惯与目标")
-    
-    health_goal = st.selectbox("健康目标", options=["减肥", "增肌", "保持健康"])
-    diet_style = st.selectbox("饮食方式", options=["自己做饭", "外卖为主", "混合"])
-    
-    # 提交按钮
-    submitted = st.form_submit_button("生成健康方案")
+# 如果还没到最后一步，显示输入框
+if st.session_state.current_step < len(QUESTIONS):
+    user_input = st.chat_input("输入你的回答...")
+    if user_input:
+        # 显示并保存用户输入
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
+            
+        # 记录数据
+        current_q = QUESTIONS[st.session_state.current_step]
+        st.session_state.user_data[current_q["key"]] = user_input
+        
+        # 准备 AI 的回应
+        reply_text = current_q["reply"]
+        
+        # 推进到下一步
+        st.session_state.current_step += 1
+        
+        if st.session_state.current_step < len(QUESTIONS):
+            # 还有问题，连着下一个问题一起问
+            next_q = QUESTIONS[st.session_state.current_step]
+            ai_msg = f"{reply_text}\n\n{next_q['question']}"
+        else:
+            # 没问题了，结束语
+            ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案，请稍等片刻..."
+            
+        st.session_state.messages.append({"role": "assistant", "content": ai_msg})
+        with st.chat_message("assistant"):
+            st.markdown(ai_msg)
+            
+        st.rerun()
 
-# 表单提交后的处理逻辑
-if submitted:
-    # 显示正在生成的提示
-    with st.status("正在生成方案...", expanded=True) as status:
-        try:
-            st.write("正在分析您的体质数据并连接 AI...")
-            # 调用 API
-            plan = generate_plan(height, weight, age, gender, health_goal, diet_style)
-            
-            # 保存到历史记录
-            user_input = {
-                "height": height,
-                "weight": weight,
-                "age": age,
-                "gender": gender,
-                "goal": health_goal,
-                "diet": diet_style
-            }
-            save_to_history(user_input, plan)
-            
-            status.update(label="方案生成完毕！", state="complete", expanded=False)
-            
-            # 显示结果
-            st.success("您的个性化健康方案已生成并已存入历史记录：")
-            
-            # 使用 st.markdown 展示美化后的结果
-            st.markdown(plan)
-            
-            st.markdown("---")
-            # 复制功能：使用 st.code 展示结果，Streamlit 自带复制按钮
-            st.subheader("📋 方案文本（可点击右上角图标复制）")
-            st.code(plan, language="markdown")
-            
-            st.info("💡 提示：以上方案由 AI 生成，请结合自身实际情况参考。")
-            
-        except Exception as e:
-            status.update(label="生成失败", state="error", expanded=False)
-            st.error(f"抱歉，生成方案时遇到了问题：{str(e)}")
-            st.warning("请检查您的 API Key 是否正确配置，或稍后再试。")
+# 如果所有问题回答完毕，且还没生成方案
+if st.session_state.current_step >= len(QUESTIONS) and not st.session_state.plan_generated:
+    with st.chat_message("assistant"):
+        with st.spinner("🧠 正在结合你的生活限制，定制专属方案..."):
+            try:
+                plan = generate_plan(st.session_state.user_data)
+                st.session_state.plan_generated = True
+                
+                # 保存到历史
+                save_to_history(st.session_state.user_data, plan)
+                
+                # 将最终方案加入消息
+                st.session_state.messages.append({"role": "assistant", "content": plan})
+                st.rerun()
+            except Exception as e:
+                st.error(f"抱歉，生成方案时遇到了问题：{str(e)}")
