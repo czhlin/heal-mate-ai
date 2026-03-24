@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import json
+import sqlite3
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -51,6 +52,21 @@ with st.sidebar:
     if st.button("🔄 重新开始对话"):
         st.session_state.clear()
         st.rerun()
+    if st.button("✏️ 修改信息"):
+        latest = load_latest_user_profile() or st.session_state.get("user_data") or {}
+        st.session_state.user_data = latest
+        st.session_state.messages = [
+            {"role": "assistant", "content": build_question(0, latest, True)}
+        ]
+        st.session_state.current_step = 0
+        st.session_state.plan_generated = False
+        st.session_state.should_generate = False
+        st.session_state.editing = True
+        st.rerun()
+    if st.button("🧹 重置信息"):
+        clear_user_profiles()
+        st.session_state.clear()
+        st.rerun()
     
     st.markdown("---")
     st.header("⚠️ 免责声明")
@@ -98,18 +114,141 @@ QUESTIONS = [
     }
 ]
 
+DB_PATH = os.getenv("HEALMATE_DB_PATH", "healmate.db")
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                basic_info TEXT,
+                goal TEXT,
+                diet TEXT,
+                allergies TEXT,
+                grocery TEXT,
+                kitchenware TEXT,
+                cooking_time TEXT
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def save_user_profile(user_data):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            """
+            INSERT INTO users (
+                created_at, updated_at, basic_info, goal, diet, allergies, grocery, kitchenware, cooking_time
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                now,
+                now,
+                user_data.get("basic_info"),
+                user_data.get("goal"),
+                user_data.get("diet"),
+                user_data.get("allergies"),
+                user_data.get("grocery"),
+                user_data.get("kitchenware"),
+                user_data.get("cooking_time"),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def load_latest_user_profile():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute(
+            """
+            SELECT basic_info, goal, diet, allergies, grocery, kitchenware, cooking_time
+            FROM users
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "basic_info": row[0] or "",
+            "goal": row[1] or "",
+            "diet": row[2] or "",
+            "allergies": row[3] or "",
+            "grocery": row[4] or "",
+            "kitchenware": row[5] or "",
+            "cooking_time": row[6] or "",
+        }
+    finally:
+        conn.close()
+
+def clear_user_profiles():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("DELETE FROM users")
+        conn.commit()
+    finally:
+        conn.close()
+
+init_db()
+
+def build_question(step, user_data, editing):
+    q = QUESTIONS[step]["question"]
+    if editing:
+        key = QUESTIONS[step]["key"]
+        current_value = (user_data.get(key) or "").strip()
+        if current_value:
+            q = f"{q}\n\n（当前：{current_value}；输入“跳过”保持不变）"
+    return q
+
 def init_session_state():
     if "messages" not in st.session_state:
-        # 添加开场白
-        st.session_state.messages = [
-            {"role": "assistant", "content": QUESTIONS[0]["question"]}
-        ]
+        latest = load_latest_user_profile()
+        if latest:
+            st.session_state.user_data = latest
+            st.session_state.editing = False
+            msgs = []
+            for item in QUESTIONS:
+                msgs.append({"role": "assistant", "content": item["question"]})
+                v = (latest.get(item["key"]) or "").strip()
+                if v:
+                    msgs.append({"role": "user", "content": v})
+                    msgs.append({"role": "assistant", "content": item["reply"]})
+            msgs.append(
+                {
+                    "role": "assistant",
+                    "content": "我已加载你上次的用户信息。你可以在侧边栏点击“修改信息”来更新，或点击“重置信息”清空数据重新开始。",
+                }
+            )
+            st.session_state.messages = msgs
+            st.session_state.current_step = len(QUESTIONS)
+            st.session_state.plan_generated = True
+            st.session_state.should_generate = False
+        else:
+            st.session_state.editing = False
+            st.session_state.messages = [
+                {"role": "assistant", "content": build_question(0, {}, False)}
+            ]
     if "current_step" not in st.session_state:
         st.session_state.current_step = 0
     if "user_data" not in st.session_state:
         st.session_state.user_data = {}
     if "plan_generated" not in st.session_state:
         st.session_state.plan_generated = False
+    if "should_generate" not in st.session_state:
+        st.session_state.should_generate = False
+    if "editing" not in st.session_state:
+        st.session_state.editing = False
 
 init_session_state()
 
@@ -186,28 +325,30 @@ for msg in st.session_state.messages:
 if st.session_state.current_step < len(QUESTIONS):
     user_input = st.chat_input("输入你的回答...")
     if user_input:
-        # 显示并保存用户输入
+        user_input = user_input.strip()
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
             
-        # 记录数据
         current_q = QUESTIONS[st.session_state.current_step]
-        st.session_state.user_data[current_q["key"]] = user_input
+        key = current_q["key"]
+        if st.session_state.editing and user_input == "跳过":
+            reply_text = "好的，保持不变。"
+        else:
+            st.session_state.user_data[key] = user_input
+            reply_text = current_q["reply"]
         
-        # 准备 AI 的回应
-        reply_text = current_q["reply"]
-        
-        # 推进到下一步
         st.session_state.current_step += 1
         
         if st.session_state.current_step < len(QUESTIONS):
-            # 还有问题，连着下一个问题一起问
-            next_q = QUESTIONS[st.session_state.current_step]
-            ai_msg = f"{reply_text}\n\n{next_q['question']}"
+            next_q_text = build_question(
+                st.session_state.current_step, st.session_state.user_data, st.session_state.editing
+            )
+            ai_msg = f"{reply_text}\n\n{next_q_text}"
         else:
-            # 没问题了，结束语
-            ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案，请稍等片刻..."
+            st.session_state.should_generate = True
+            st.session_state.editing = False
+            ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案。"
             
         st.session_state.messages.append({"role": "assistant", "content": ai_msg})
         with st.chat_message("assistant"):
@@ -215,18 +356,19 @@ if st.session_state.current_step < len(QUESTIONS):
             
         st.rerun()
 
-# 如果所有问题回答完毕，且还没生成方案
-if st.session_state.current_step >= len(QUESTIONS) and not st.session_state.plan_generated:
+# 如果所有问题回答完毕，且准备生成方案
+if st.session_state.should_generate and not st.session_state.plan_generated:
     with st.chat_message("assistant"):
         with st.spinner("🧠 正在结合你的生活限制，定制专属方案..."):
             try:
-                plan = generate_plan(st.session_state.user_data)
+                save_user_profile(st.session_state.user_data)
+                latest_profile = load_latest_user_profile() or st.session_state.user_data
+                plan = generate_plan(latest_profile)
                 st.session_state.plan_generated = True
+                st.session_state.should_generate = False
                 
-                # 保存到历史
-                save_to_history(st.session_state.user_data, plan)
+                save_to_history(latest_profile, plan)
                 
-                # 将最终方案加入消息
                 st.session_state.messages.append({"role": "assistant", "content": plan})
                 st.rerun()
             except Exception as e:
