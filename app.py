@@ -39,42 +39,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 侧边栏
-with st.sidebar:
-    st.header("📖 使用说明")
-    st.markdown("""
-    欢迎使用 HealMate-AI！
-    请在聊天框中与我对话，我会一步步了解你的情况。
-    收集完信息后，我将为你量身定制一份可执行的健康方案。
-    
-    如果你想重新开始，请点击下方按钮。
-    """)
-    if st.button("🔄 重新开始对话"):
-        st.session_state.clear()
-        st.rerun()
-    if st.button("✏️ 修改信息"):
-        latest = load_latest_user_profile() or st.session_state.get("user_data") or {}
-        st.session_state.user_data = latest
-        st.session_state.messages = [
-            {"role": "assistant", "content": build_question(0, latest, True)}
-        ]
-        st.session_state.current_step = 0
-        st.session_state.plan_generated = False
-        st.session_state.should_generate = False
-        st.session_state.editing = True
-        st.rerun()
-    if st.button("🧹 重置信息"):
-        clear_user_profiles()
-        st.session_state.clear()
-        st.rerun()
-    
-    st.markdown("---")
-    st.header("⚠️ 免责声明")
-    st.info("""
-    本应用生成的所有内容仅供参考，不构成医疗建议、诊断或治疗方案。
-    在开始任何新的饮食或运动计划之前，请务必咨询专业医生的意见。
-    """)
-
 # 定义对话步骤和问题
 QUESTIONS = [
     {
@@ -251,6 +215,42 @@ def init_session_state():
         st.session_state.editing = False
 
 init_session_state()
+
+# 侧边栏
+with st.sidebar:
+    st.header("📖 使用说明")
+    st.markdown("""
+    欢迎使用 HealMate-AI！
+    请在聊天框中与我对话，我会一步步了解你的情况。
+    收集完信息后，我将为你量身定制一份可执行的健康方案。
+    
+    如果你想重新开始，请点击下方按钮。
+    """)
+    if st.button("🔄 重新开始对话"):
+        st.session_state.clear()
+        st.rerun()
+    if st.button("✏️ 修改信息"):
+        latest = load_latest_user_profile() or st.session_state.get("user_data") or {}
+        st.session_state.user_data = latest
+        st.session_state.messages = [
+            {"role": "assistant", "content": build_question(0, latest, True)}
+        ]
+        st.session_state.current_step = 0
+        st.session_state.plan_generated = False
+        st.session_state.should_generate = False
+        st.session_state.editing = True
+        st.rerun()
+    if st.button("🧹 重置信息"):
+        clear_user_profiles()
+        st.session_state.clear()
+        st.rerun()
+    
+    st.markdown("---")
+    st.header("⚠️ 免责声明")
+    st.info("""
+    本应用生成的所有内容仅供参考，不构成医疗建议、诊断或治疗方案。
+    在开始任何新的饮食或运动计划之前，请务必咨询专业医生的意见。
+    """)
 
 def save_to_history(input_data, output_text):
     history_file = "history.json"
