@@ -9,8 +9,13 @@ from openai import OpenAI
 load_dotenv()
 
 # 配置 DeepSeek API
+api_key = os.getenv("DEEPSEEK_API_KEY")
+if not api_key:
+    # 如果没有 key，提供一个默认值防止初始化崩溃，实际调用时会报错并被捕获
+    api_key = "dummy_key"
+
 client = OpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    api_key=api_key,
     base_url="https://api.deepseek.com",
 )
 
@@ -137,6 +142,11 @@ def generate_plan(height, weight, age, gender, goal, diet):
 # 主页面标题
 st.markdown('<h1 class="main-title">AI健康管家 🩺</h1>', unsafe_allow_html=True)
 st.markdown("---")
+
+# 检查 API Key 是否配置
+if api_key == "dummy_key":
+    st.error("⚠️ 未检测到 DEEPSEEK_API_KEY。请在环境变量中配置后重试。")
+    st.stop()  # 停止执行后续代码
 
 # 创建表单
 with st.form("health_info_form"):
