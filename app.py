@@ -16,6 +16,16 @@ def remove_cookie(name: str):
     js = f"document.cookie = '{name}=; max-age=0; path=/; SameSite=Lax';"
     st.components.v1.html(f"<script>{js}</script>", height=0)
 
+def hide_sidebar():
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stSidebar"] { display: none; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # 核心：使用 Streamlit 官方原生的 st.context.cookies 在服务端直接读取请求头里的 Cookie。
 # 没有任何延迟、没有任何闪烁、不依赖 iframe！
 if "user_id" not in st.session_state or not st.session_state.user_id:
@@ -33,6 +43,7 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
             st.session_state.user_id = user_id
 
 if "user_id" not in st.session_state or not st.session_state.user_id:
+    hide_sidebar()
     st.title("👋 欢迎来到 HealMate AI")
     st.markdown("为了保证你的数据隐私和定制化体验，请输入你的账号和密码：")
     
