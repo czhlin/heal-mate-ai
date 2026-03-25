@@ -1,11 +1,11 @@
 import streamlit as st
 from datetime import datetime
-from database import init_db, get_last_checkin_date, load_latest_plan, load_latest_user_profile, save_user_profile
+from database import get_last_checkin_date, load_latest_plan, load_latest_user_profile, save_user_profile
 from config import PLAN_VERSIONS
 from utils import init_session_state
 
-# 初始化数据库
-init_db()
+# 获取当前用户 ID
+user_id = st.session_state.user_id
 
 # 初始化 session state
 init_session_state()
@@ -48,7 +48,7 @@ st.markdown("""
 st.markdown('<h1 class="main-title">HealMate AI 🩺</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">你的专属健康陪伴者，接纳一切不完美，慢慢来。</p>', unsafe_allow_html=True)
 
-latest_plan = load_latest_plan()
+latest_plan = load_latest_plan(user_id)
 if latest_plan:
     version = PLAN_VERSIONS.get(latest_plan["version_key"]) or PLAN_VERSIONS["ideal"]
     with st.expander(f"📌 当前健康计划（{version['label']} · {latest_plan['created_at']}）", expanded=True):
@@ -58,7 +58,7 @@ else:
 
 # 快速调整入口
 with st.expander("⚙️ 快速调整（可选）", expanded=False):
-    latest_profile = load_latest_user_profile() or st.session_state.get("user_data") or {}
+    latest_profile = load_latest_user_profile(user_id) or st.session_state.get("user_data") or {}
     c1, c2 = st.columns(2)
     with c1:
         goal = st.text_input("健康目标", value=(latest_profile.get("goal") or ""))
@@ -86,7 +86,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
             "kitchenware": kitchenware,
             "cooking_time": cooking_time,
         }
-        save_user_profile(new_profile)
+        save_user_profile(user_id, new_profile)
         st.session_state.user_data = new_profile
         st.session_state.profile_complete = True
         st.session_state.editing = False
@@ -95,7 +95,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
         st.switch_page("views/1_consultation.py")
 
 # 检查连续未打卡提醒
-last_checkin = get_last_checkin_date()
+last_checkin = get_last_checkin_date(user_id)
 if last_checkin and st.session_state.get("profile_complete"):
     last_date = datetime.strptime(last_checkin, "%Y-%m-%d").date()
     today_date = datetime.now().date()

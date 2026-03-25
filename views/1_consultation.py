@@ -12,6 +12,9 @@ from database import (
 from ai_service import generate_plan, extract_daily_tasks
 from utils import save_to_history, init_session_state, build_question
 
+# 获取当前用户 ID
+user_id = st.session_state.user_id
+
 # 初始化状态
 init_session_state()
 
@@ -35,7 +38,7 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
     if st.button("✏️ 修改信息"):
-        latest = load_latest_user_profile() or st.session_state.get("user_data") or {}
+        latest = load_latest_user_profile(user_id) or st.session_state.get("user_data") or {}
         st.session_state.user_data = latest
         st.session_state.messages = [
             {"role": "assistant", "content": build_question(0, latest, True)}
@@ -48,8 +51,9 @@ with st.sidebar:
         st.session_state.editing = True
         st.rerun()
     if st.button("🧹 重置信息"):
-        clear_user_profiles()
+        clear_user_profiles(user_id)
         st.session_state.clear()
+        st.session_state.user_id = user_id  # 保持登录状态
         st.rerun()
 
 # 渲染聊天记录
@@ -84,7 +88,7 @@ if st.session_state.current_step < len(QUESTIONS):
         else:
             st.session_state.editing = False
             st.session_state.profile_complete = True
-            save_user_profile(st.session_state.user_data)
+            save_user_profile(user_id, st.session_state.user_data)
             ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案。你想要哪个版本？"
             
         st.session_state.messages.append({"role": "assistant", "content": ai_msg})
@@ -118,13 +122,13 @@ if st.session_state.profile_complete and not st.session_state.editing:
         with st.chat_message("assistant"):
             with st.spinner(f"🧠 正在生成 {version['label']} ..."):
                 try:
-                    latest_profile = load_latest_user_profile() or st.session_state.user_data
+                    latest_profile = load_latest_user_profile(user_id) or st.session_state.user_data
                     plan = generate_plan(latest_profile, st.session_state.selected_plan_version)
                     
                     # 提取打卡任务并保存
                     tasks = extract_daily_tasks(plan)
-                    save_daily_tasks(tasks)
-                    save_plan(st.session_state.selected_plan_version, plan)
+                    save_daily_tasks(user_id, tasks)
+                    save_plan(user_id, st.session_state.selected_plan_version, plan)
                     
                     st.session_state.plan_text = plan
                     st.session_state.generating_plan = False
