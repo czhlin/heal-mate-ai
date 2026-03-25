@@ -103,3 +103,27 @@ def generate_feedback(completed_count, total_count):
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"打卡成功！已完成 {completed_count}/{total_count} 项，继续加油哦！"
+
+def generate_checkin_reply(feedback: str, completed_tasks: list, total_tasks_count: int) -> str:
+    """
+    根据用户的打卡反馈生成温暖的 AI 回应
+    """
+    prompt = f"""
+    你是一个极其温柔、有同理心的 AI 健康管家。
+    今天用户的打卡情况如下：
+    - 完成了 {len(completed_tasks)}/{total_tasks_count} 个任务。
+    - 用户的感受反馈："{feedback}"
+    
+    请根据用户的反馈，写一段简短（50-100字）、积极、温暖、充满力量的回复。
+    如果用户感到疲惫、沮丧，请接纳他们的情绪并给予安慰，告诉他们休息也没关系；
+    如果用户感到开心、有成就感，请给予真诚的赞美和鼓励。
+    不需要给出长篇大论的建议，重点是情感陪伴。
+    """
+    
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "system", "content": prompt}],
+        temperature=0.7
+    )
+    
+    return response.choices[0].message.content.strip()

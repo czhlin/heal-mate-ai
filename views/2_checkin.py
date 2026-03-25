@@ -3,9 +3,9 @@ import time
 from datetime import datetime
 from streamlit.errors import StreamlitAPIException
 
-from database import load_latest_daily_tasks, load_checkin, save_checkin, load_latest_plan
+from database import load_latest_daily_tasks, load_checkin, save_checkin, load_latest_plan, get_all_checkins
 from config import HARD_MODE_KEYWORDS
-from ai_service import generate_feedback
+from ai_service import generate_feedback, generate_checkin_reply
 from utils import init_session_state
 
 # 获取当前用户 ID
@@ -74,10 +74,27 @@ else:
                 st.rerun()
             
             with st.spinner("正在生成专属反馈..."):
+                ai_reply = ""
+                # 如果用户填写了感受，根据感受调用 AI 生成温暖回应
+                if daily_feeling.strip():
+                    try:
+                        ai_reply = generate_checkin_reply(daily_feeling.strip(), checked_items, len(latest_tasks))
+                    except Exception:
+                        ai_reply = "我收到你的感受啦，无论今天过得怎么样，你都已经做得很好了，好好休息吧！"
+
+                # 原有的反馈评价（根据完成任务数生成）
                 feedback = generate_feedback(len(checked_items), len(latest_tasks))
-                save_checkin(user_id, today_str, checked_items, feedback)
-                st.success(feedback)
-                time.sleep(1.5)
+                
+                # 保存打卡记录（包含用户感受、生成的系统评价、以及 AI 回应）
+                save_checkin(user_id, today_str, checked_items, feedback=daily_feeling, ai_reply=ai_reply or feedback)
+                
+                if ai_reply:
+                    st.success("打卡成功！")
+                    st.info(f"💌 **AI 寄语：**\n\n{ai_reply}")
+                else:
+                    st.success(feedback)
+                
+                time.sleep(2.5) # 给用户时间阅读 AI 回应
                 st.rerun()
 
 # 在表单外处理困难模式触发
@@ -88,10 +105,9 @@ if st.session_state.get("trigger_hard_mode"):
     with c1:
         if st.button("不用了，我可以坚持", use_container_width=True):
             st.session_state.trigger_hard_mode = False
-            # 直接按0任务提交并生成反馈
             with st.spinner("正在生成专属反馈..."):
                 feedback = generate_feedback(0, len(latest_tasks))
-                save_checkin(user_id, today_str, [], feedback)
+                save_checkin(user_id, today_str, [], feedback=daily_feeling, ai_reply=feedback)
             st.rerun()
     with c2:
         if st.button("好，帮我换成「最小行动方案」", use_container_width=True):
@@ -99,3 +115,39 @@ if st.session_state.get("trigger_hard_mode"):
             st.session_state.selected_plan_version = "minimum"
             st.session_state.generating_plan = True
             st.switch_page("views/1_consultation.py")
+
+st.markdown("---")
+st.subheader("📅 我的打卡日记")
+
+# 历史打卡记录日历视图
+history_records = get_all_checkins(user_id)
+
+if not history_records:
+    st.write("暂无过往打卡记录，今天是你迈出改变的第一步！")
+else:
+    for record in history_records:
+        date_str = record["date"]
+        tasks_done = record["tasks"]
+        user_feedback = record["feedback"]
+        ai_msg = record["ai_reply"]
+        
+        # 将日期字符串转为更友好的格式
+        try:
+            dt_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            display_date = dt_obj.strftime("%Y年%m月%d日")
+        except ValueError:
+            display_date = date_str
+
+        with st.expander(f"📌 {display_date} - 完成了 {len(tasks_done)} 项小目标", expanded=False):
+            if tasks_done:
+                st.markdown("**完成的行动：**")
+                for t in tasks_done:
+                    st.markdown(f"- ✅ {t}")
+            else:
+                st.markdown("那天在休息，没有完成任务，也没关系~")
+                
+            if user_feedback:
+                st.markdown(f"> 📝 **你的感受：** {user_feedback}")
+            
+            if ai_msg:
+                st.markdown(f"**💌 AI 的回应：**\n{ai_msg}")

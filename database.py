@@ -92,6 +92,10 @@ def init_db():
             conn.execute("ALTER TABLE check_ins ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'")
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute("ALTER TABLE check_ins ADD COLUMN ai_reply TEXT")
+        except sqlite3.OperationalError:
+            pass
 
         try:
             cur = conn.execute("PRAGMA table_info(check_ins)")
@@ -116,6 +120,7 @@ def init_db():
                         check_date TEXT NOT NULL,
                         completed_tasks_json TEXT NOT NULL,
                         feedback TEXT,
+                        ai_reply TEXT,
                         UNIQUE(user_id, check_date)
                     )
                     """
@@ -299,25 +304,24 @@ def load_latest_daily_tasks(user_id):
     finally:
         conn.close()
 
-def save_checkin(user_id, check_date, completed_tasks_list, feedback=""):
+def save_checkin(user_id, check_date, completed_tasks_list, feedback="", ai_reply=""):
     tasks_json = json.dumps(completed_tasks_list, ensure_ascii=False)
     conn = sqlite3.connect(DB_PATH)
     try:
-        # 由于旧表的 check_date 可能是唯一的，这里更新一下逻辑：先查询是否存在，存在则 UPDATE，否则 INSERT
         cur = conn.execute("SELECT id FROM check_ins WHERE user_id = ? AND check_date = ?", (user_id, check_date))
         row = cur.fetchone()
         if row:
             conn.execute(
-                "UPDATE check_ins SET completed_tasks_json = ?, feedback = ? WHERE id = ?",
-                (tasks_json, feedback, row[0])
+                "UPDATE check_ins SET completed_tasks_json = ?, feedback = ?, ai_reply = ? WHERE id = ?",
+                (tasks_json, feedback, ai_reply, row[0])
             )
         else:
             conn.execute(
                 """
-                INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback) 
-                VALUES (?, ?, ?, ?)
+                INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback, ai_reply) 
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (user_id, check_date, tasks_json, feedback)
+                (user_id, check_date, tasks_json, feedback, ai_reply)
             )
         conn.commit()
     finally:
@@ -326,11 +330,32 @@ def save_checkin(user_id, check_date, completed_tasks_list, feedback=""):
 def load_checkin(user_id, check_date):
     conn = sqlite3.connect(DB_PATH)
     try:
-        cur = conn.execute("SELECT completed_tasks_json, feedback FROM check_ins WHERE user_id = ? AND check_date = ?", (user_id, check_date))
+        # 使用 sqlite3.Row 或直接按列索引读取
+        cur = conn.execute("SELECT completed_tasks_json, feedback, ai_reply FROM check_ins WHERE user_id = ? AND check_date = ?", (user_id, check_date))
         row = cur.fetchone()
         if row:
-            return json.loads(row[0]), row[1]
-        return [], ""
+            return json.loads(row[0]), row[1], (row[2] if len(row) > 2 else "")
+        return [], "", ""
+    finally:
+        conn.close()
+
+def get_all_checkins(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute(
+            "SELECT check_date, completed_tasks_json, feedback, ai_reply FROM check_ins WHERE user_id = ? ORDER BY check_date DESC", 
+            (user_id,)
+        )
+        rows = cur.fetchall()
+        results = []
+        for r in rows:
+            results.append({
+                "date": r[0],
+                "tasks": json.loads(r[1]),
+                "feedback": r[2] or "",
+                "ai_reply": r[3] or ""
+            })
+        return results
     finally:
         conn.close()
 
