@@ -80,6 +80,27 @@ QUESTIONS = [
 
 DB_PATH = os.getenv("HEALMATE_DB_PATH", "healmate.db")
 
+PLAN_VERSIONS = {
+    "ideal": {
+        "label": "理想版",
+        "button": "我想要理想版",
+        "hint": "适合有时间做饭",
+        "requirements": "理想版：给出详细食谱，务必考虑用户的买菜渠道与厨具，并按一天的时间线安排。",
+    },
+    "lazy": {
+        "label": "懒人版",
+        "button": "我想要懒人版",
+        "hint": "没时间，用补充剂兜底",
+        "requirements": "懒人版：以便利店/外卖为核心给出可执行选择，并提供基础补充剂建议（如复合维生素、蛋白粉），同时给出最小行动清单。",
+    },
+    "free": {
+        "label": "零成本版",
+        "button": "我想要零成本版",
+        "hint": "不额外花钱",
+        "requirements": "零成本版：只利用现有条件，不推荐任何购买；优先公司饮水、走路运动、食堂免费汤等可得资源，给出不花钱的替代方案。",
+    },
+}
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -191,13 +212,12 @@ def init_session_state():
             msgs.append(
                 {
                     "role": "assistant",
-                    "content": "我已加载你上次的用户信息。你可以在侧边栏点击“修改信息”来更新，或点击“重置信息”清空数据重新开始。",
+                    "content": "我已加载你上次的用户信息。你可以在侧边栏点击“修改信息”来更新，或点击“重置信息”清空数据重新开始。也可以直接选择一个版本生成分层方案。",
                 }
             )
             st.session_state.messages = msgs
             st.session_state.current_step = len(QUESTIONS)
-            st.session_state.plan_generated = True
-            st.session_state.should_generate = False
+            st.session_state.profile_complete = True
         else:
             st.session_state.editing = False
             st.session_state.messages = [
@@ -207,12 +227,16 @@ def init_session_state():
         st.session_state.current_step = 0
     if "user_data" not in st.session_state:
         st.session_state.user_data = {}
-    if "plan_generated" not in st.session_state:
-        st.session_state.plan_generated = False
-    if "should_generate" not in st.session_state:
-        st.session_state.should_generate = False
     if "editing" not in st.session_state:
         st.session_state.editing = False
+    if "profile_complete" not in st.session_state:
+        st.session_state.profile_complete = False
+    if "selected_plan_version" not in st.session_state:
+        st.session_state.selected_plan_version = None
+    if "plan_text" not in st.session_state:
+        st.session_state.plan_text = None
+    if "generating_plan" not in st.session_state:
+        st.session_state.generating_plan = False
 
 init_session_state()
 
@@ -236,8 +260,10 @@ with st.sidebar:
             {"role": "assistant", "content": build_question(0, latest, True)}
         ]
         st.session_state.current_step = 0
-        st.session_state.plan_generated = False
-        st.session_state.should_generate = False
+        st.session_state.profile_complete = False
+        st.session_state.selected_plan_version = None
+        st.session_state.plan_text = None
+        st.session_state.generating_plan = False
         st.session_state.editing = True
         st.rerun()
     if st.button("🧹 重置信息"):
@@ -273,9 +299,10 @@ def save_to_history(input_data, output_text):
     except IOError as e:
         print(f"保存历史记录失败: {str(e)}")
 
-def generate_plan(user_data):
+def generate_plan(user_data, plan_version_key):
+    version = PLAN_VERSIONS.get(plan_version_key) or PLAN_VERSIONS["ideal"]
     prompt = f"""你是一位充满同理心、专业的AI健康管家。根据以下用户的详细信息生成高度个性化的健康方案。
-请用分段形式，每段开头用【饮食】【饮水】【睡眠】【运动】标注。
+请用分段形式，每段开头用【饮食】【饮水】【睡眠】【运动】标注，并在最开头用一行写明【版本：{version['label']}】。
 
 【用户信息】
 - 基本身体数据：{user_data.get('basic_info', '未提供')}
@@ -286,8 +313,11 @@ def generate_plan(user_data):
 - 现有厨具：{user_data.get('kitchenware', '未提供')}
 - 做饭时间：{user_data.get('cooking_time', '未提供')}
 
+【生成版本】
+{version['requirements']}
+
 【方案要求】
-1. 饮食：必须具体到食材。如果用户外卖为主，教他如何点外卖；如果自己做饭，结合他的【买菜渠道】、【现有厨具】和【做饭时间】给出极具实操性的建议。绝对避开【过敏/不耐受】的食物。
+1. 饮食：必须具体到食材与可操作选项，绝对避开【过敏/不耐受】的食物。
 2. 饮水：用具体的杯数（如250ml/杯）表达目标，结合时间点提醒。
 3. 睡眠：给具体的入睡和起床时间区间，以及睡前小建议。
 4. 运动：结合目标，给出具体动作、时长或频次（考虑场地限制，如果是居家可以推荐徒手动作）。
@@ -346,9 +376,10 @@ if st.session_state.current_step < len(QUESTIONS):
             )
             ai_msg = f"{reply_text}\n\n{next_q_text}"
         else:
-            st.session_state.should_generate = True
             st.session_state.editing = False
-            ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案。"
+            st.session_state.profile_complete = True
+            save_user_profile(st.session_state.user_data)
+            ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案。你想要哪个版本？"
             
         st.session_state.messages.append({"role": "assistant", "content": ai_msg})
         with st.chat_message("assistant"):
@@ -356,20 +387,40 @@ if st.session_state.current_step < len(QUESTIONS):
             
         st.rerun()
 
-# 如果所有问题回答完毕，且准备生成方案
-if st.session_state.should_generate and not st.session_state.plan_generated:
-    with st.chat_message("assistant"):
-        with st.spinner("🧠 正在结合你的生活限制，定制专属方案..."):
-            try:
-                save_user_profile(st.session_state.user_data)
-                latest_profile = load_latest_user_profile() or st.session_state.user_data
-                plan = generate_plan(latest_profile)
-                st.session_state.plan_generated = True
-                st.session_state.should_generate = False
-                
-                save_to_history(latest_profile, plan)
-                
-                st.session_state.messages.append({"role": "assistant", "content": plan})
-                st.rerun()
-            except Exception as e:
-                st.error(f"抱歉，生成方案时遇到了问题：{str(e)}")
+if st.session_state.profile_complete and not st.session_state.editing:
+    st.markdown("---")
+    st.subheader("选择方案版本")
+    c1, c2, c3 = st.columns(3)
+    clicked = None
+    with c1:
+        if st.button(f"{PLAN_VERSIONS['ideal']['button']}\n\n{PLAN_VERSIONS['ideal']['hint']}"):
+            clicked = "ideal"
+    with c2:
+        if st.button(f"{PLAN_VERSIONS['lazy']['button']}\n\n{PLAN_VERSIONS['lazy']['hint']}"):
+            clicked = "lazy"
+    with c3:
+        if st.button(f"{PLAN_VERSIONS['free']['button']}\n\n{PLAN_VERSIONS['free']['hint']}"):
+            clicked = "free"
+
+    if clicked:
+        st.session_state.selected_plan_version = clicked
+        st.session_state.generating_plan = True
+
+    if st.session_state.generating_plan and st.session_state.selected_plan_version:
+        version = PLAN_VERSIONS.get(st.session_state.selected_plan_version) or PLAN_VERSIONS["ideal"]
+        with st.chat_message("assistant"):
+            with st.spinner(f"🧠 正在生成 {version['label']} ..."):
+                try:
+                    latest_profile = load_latest_user_profile() or st.session_state.user_data
+                    plan = generate_plan(latest_profile, st.session_state.selected_plan_version)
+                    st.session_state.plan_text = plan
+                    st.session_state.generating_plan = False
+
+                    header = f"### 当前版本：{version['label']}"
+                    message = f"{header}\n\n{plan}"
+                    save_to_history(latest_profile, message)
+                    st.session_state.messages.append({"role": "assistant", "content": message})
+                    st.rerun()
+                except Exception as e:
+                    st.session_state.generating_plan = False
+                    st.error(f"抱歉，生成方案时遇到了问题：{str(e)}")
