@@ -7,6 +7,7 @@ from database import (
     load_latest_user_profile,
     clear_user_profiles,
     save_daily_tasks,
+    save_plan,
 )
 from ai_service import generate_plan, extract_daily_tasks
 from utils import save_to_history, init_session_state, build_question
@@ -126,6 +127,7 @@ if st.session_state.profile_complete and not st.session_state.editing:
                     # 提取打卡任务并保存
                     tasks = extract_daily_tasks(plan)
                     save_daily_tasks(tasks)
+                    save_plan(st.session_state.selected_plan_version, plan)
                     
                     st.session_state.plan_text = plan
                     st.session_state.generating_plan = False

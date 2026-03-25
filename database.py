@@ -24,6 +24,16 @@ def init_db():
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                version_key TEXT NOT NULL,
+                plan_text TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS daily_tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 created_at TEXT NOT NULL,
@@ -102,6 +112,7 @@ def clear_user_profiles():
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute("DELETE FROM users")
+        conn.execute("DELETE FROM plans")
         conn.execute("DELETE FROM daily_tasks")
         conn.execute("DELETE FROM check_ins")
         conn.commit()
@@ -166,5 +177,30 @@ def get_last_checkin_date():
         if row:
             return row[0]
         return None
+    finally:
+        conn.close()
+
+def save_plan(version_key, plan_text):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO plans (created_at, version_key, plan_text) VALUES (?, ?, ?)",
+            (now, version_key, plan_text),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def load_latest_plan():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute(
+            "SELECT created_at, version_key, plan_text FROM plans ORDER BY id DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {"created_at": row[0], "version_key": row[1], "plan_text": row[2]}
     finally:
         conn.close()
