@@ -7,8 +7,6 @@ from database import load_latest_daily_tasks, load_checkin, save_checkin
 from ai_service import generate_feedback
 from utils import init_session_state
 
-st.set_page_config(page_title="今日打卡", layout="centered")
-
 init_session_state()
 
 st.title("✅ 今日打卡")
@@ -27,14 +25,14 @@ def safe_switch_page(page_path):
 if not st.session_state.get("profile_complete"):
     st.info("请先前往「💬 AI咨询」页面完成基本信息并生成方案，之后即可在这里打卡。")
     if st.button("去咨询"):
-        safe_switch_page("pages/1_consultation.py")
+        st.switch_page("views/1_consultation.py")
     st.stop()
 
 latest_tasks = load_latest_daily_tasks()
 if not latest_tasks:
     st.info("当前还没有可打卡的任务。请先前往「💬 AI咨询」生成一份健康方案。")
     if st.button("去生成方案"):
-        safe_switch_page("pages/1_consultation.py")
+        st.switch_page("views/1_consultation.py")
     st.stop()
 
 completed_tasks, fb = load_checkin(today_str)

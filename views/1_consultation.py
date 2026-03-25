@@ -12,9 +12,6 @@ from database import (
 from ai_service import generate_plan, extract_daily_tasks
 from utils import save_to_history, init_session_state, build_question
 
-# 设置页面配置
-st.set_page_config(page_title="AI健康管家 - 咨询", layout="centered")
-
 # 初始化状态
 init_session_state()
 
