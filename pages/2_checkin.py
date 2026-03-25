@@ -19,14 +19,14 @@ today_str = datetime.now().strftime("%Y-%m-%d")
 if not st.session_state.get("profile_complete"):
     st.info("请先前往「💬 AI咨询」页面完成基本信息并生成方案，之后即可在这里打卡。")
     if st.button("去咨询"):
-        st.switch_page("pages/1_💬_AI咨询.py")
+        st.switch_page("pages/1_consultation.py")
     st.stop()
 
 latest_tasks = load_latest_daily_tasks()
 if not latest_tasks:
     st.info("当前还没有可打卡的任务。请先前往「💬 AI咨询」生成一份健康方案。")
     if st.button("去生成方案"):
-        st.switch_page("pages/1_💬_AI咨询.py")
+        st.switch_page("pages/1_consultation.py")
     st.stop()
 
 completed_tasks, fb = load_checkin(today_str)

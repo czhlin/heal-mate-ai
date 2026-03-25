@@ -65,11 +65,11 @@ col1, col2 = st.columns(2)
 
 with col1:
     if st.button("💬 去进行 AI 咨询\n\n(更新信息 / 生成方案)", use_container_width=True):
-        st.switch_page("pages/1_💬_AI咨询.py")
+        st.switch_page("pages/1_consultation.py")
 
 with col2:
     if st.button("✅ 去完成今日打卡\n\n(记录进度 / 获取鼓励)", use_container_width=True):
-        st.switch_page("pages/2_✅_今日打卡.py")
+        st.switch_page("pages/2_checkin.py")
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.caption("提示：初次使用请先点击「AI 咨询」生成专属你的健康方案。")
