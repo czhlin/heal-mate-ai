@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 
-from config import DEEPSEEK_API_KEY, QUESTIONS, PLAN_VERSIONS
+from config import DEEPSEEK_API_KEY, QUESTIONS, PLAN_VERSIONS, HARD_MODE_KEYWORDS
 from database import (
     save_user_profile,
     load_latest_user_profile,
@@ -72,11 +72,18 @@ if st.session_state.current_step < len(QUESTIONS):
             
         current_q = QUESTIONS[st.session_state.current_step]
         key = current_q["key"]
+        
+        # 困难模式检测
+        is_hard_mode = any(kw in user_input for kw in HARD_MODE_KEYWORDS)
+        hard_mode_reply = ""
+        if is_hard_mode:
+            hard_mode_reply = "💚 我完全理解，改变习惯确实不容易。我们不需要一次做太多，累了就休息，没关系的。\n\n"
+        
         if st.session_state.editing and user_input == "跳过":
-            reply_text = "好的，保持不变。"
+            reply_text = hard_mode_reply + "好的，保持不变。"
         else:
             st.session_state.user_data[key] = user_input
-            reply_text = current_q["reply"]
+            reply_text = hard_mode_reply + current_q["reply"]
         
         st.session_state.current_step += 1
         

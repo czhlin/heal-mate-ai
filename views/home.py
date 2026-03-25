@@ -99,8 +99,21 @@ last_checkin = get_last_checkin_date(user_id)
 if last_checkin and st.session_state.get("profile_complete"):
     last_date = datetime.strptime(last_checkin, "%Y-%m-%d").date()
     today_date = datetime.now().date()
-    if (today_date - last_date).days >= 2:
-        st.info("💚 我注意到你最近没打卡，是遇到困难了吗？没关系，休息一下，随时可以重新开始。需要调整目标的话，可以在咨询页面修改信息。")
+    days_missed = (today_date - last_date).days
+    
+    # 针对已是 minimum 版本的特殊处理
+    is_already_minimum = latest_plan and latest_plan.get("version_key") == "minimum"
+    
+    if days_missed >= 3:
+        st.warning("💚 我注意到你中断打卡几天了。没关系，接纳失败是重新开始的第一步。")
+        if not is_already_minimum:
+            st.write("要重新开始吗？我们从最简单的任务做起。")
+            if st.button("🌱 帮我换成「最小行动方案」重新开始"):
+                st.session_state.selected_plan_version = "minimum"
+                st.session_state.generating_plan = True
+                st.switch_page("views/1_consultation.py")
+    elif days_missed == 2:
+        st.info("💚 我注意到你最近没打卡，是遇到困难了吗？没关系，休息一下，随时可以重新开始。需要调整目标的话，可以随时修改。")
 
 st.markdown("---")
 st.write("### 请选择你要进行的操作：")
