@@ -28,9 +28,15 @@ def apply_theme(theme: str):
             <style>
             :root {
               --hm-bg: #0E1117;
+              --hm-bg2: #0B0F14;
               --hm-text: #FAFAFA;
+              --hm-muted: rgba(250,250,250,0.72);
               --hm-card: #161B22;
-              --hm-border: rgba(250,250,250,0.12);
+              --hm-border: rgba(250,250,250,0.14);
+              --hm-input: #0B1220;
+              --hm-input-text: #FAFAFA;
+              --hm-placeholder: rgba(250,250,250,0.48);
+              --hm-primary: #4CAF50;
             }
             </style>
             """,
@@ -42,9 +48,15 @@ def apply_theme(theme: str):
             <style>
             :root {
               --hm-bg: #FFFFFF;
+              --hm-bg2: #F6F7F9;
               --hm-text: #0E1117;
+              --hm-muted: rgba(14,17,23,0.72);
               --hm-card: #FFFFFF;
               --hm-border: rgba(14,17,23,0.12);
+              --hm-input: #FFFFFF;
+              --hm-input-text: #0E1117;
+              --hm-placeholder: rgba(14,17,23,0.40);
+              --hm-primary: #2E7D32;
             }
             </style>
             """,
@@ -56,10 +68,61 @@ def apply_theme(theme: str):
         <style>
         .stApp { color: var(--hm-text); }
         [data-testid="stAppViewContainer"] { background-color: var(--hm-bg); }
-        [data-testid="stSidebarContent"] { background-color: var(--hm-bg); }
+        [data-testid="stSidebarContent"] { background-color: var(--hm-bg2); }
         [data-testid="stSidebar"] { border-right: 1px solid var(--hm-border); }
+        [data-testid="stHeader"] { background: transparent; }
+        [data-testid="stBottomBlockContainer"] { background: var(--hm-bg); border-top: 1px solid var(--hm-border); }
+
+        .stApp, .stApp p, .stApp span, .stApp label, .stApp li,
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
+          color: var(--hm-text);
+        }
+        .stApp small, .stApp .stCaption, .stApp [data-testid="stCaptionContainer"] {
+          color: var(--hm-muted);
+        }
+
         [data-testid="stChatMessage"] { background: transparent; }
-        div.stButton > button:first-child { border-color: var(--hm-border); }
+
+        div[data-baseweb="input"] input,
+        div[data-baseweb="textarea"] textarea {
+          background-color: var(--hm-input) !important;
+          color: var(--hm-input-text) !important;
+          border-color: var(--hm-border) !important;
+        }
+        div[data-baseweb="input"] input::placeholder,
+        div[data-baseweb="textarea"] textarea::placeholder {
+          color: var(--hm-placeholder) !important;
+        }
+        div[data-baseweb="select"] > div {
+          background-color: var(--hm-input) !important;
+          border-color: var(--hm-border) !important;
+        }
+        div[data-baseweb="select"] * {
+          color: var(--hm-input-text) !important;
+        }
+
+        details, summary {
+          border-color: var(--hm-border) !important;
+        }
+        details > summary {
+          background: var(--hm-card) !important;
+        }
+        details > div {
+          background: transparent !important;
+        }
+
+        div.stButton > button:first-child {
+          border-color: var(--hm-border) !important;
+          background-color: var(--hm-card) !important;
+          color: var(--hm-text) !important;
+        }
+        div.stButton > button:first-child:hover {
+          border-color: var(--hm-primary) !important;
+          color: var(--hm-primary) !important;
+        }
+
+        [data-testid="stChatInput"] { background: transparent !important; }
+        [data-testid="stChatInput"] > div { background: transparent !important; }
         </style>
         """,
         unsafe_allow_html=True,
