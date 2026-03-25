@@ -58,13 +58,22 @@ else:
 
 # 快速调整入口
 with st.expander("⚙️ 快速调整（可选）", expanded=False):
-    latest_profile = load_latest_user_profile(user_id) or st.session_state.get("user_data") or {}
-    has_basic_info = bool((latest_profile.get("basic_info") or "").strip())
-    if not has_basic_info:
+    latest_profile_db = load_latest_user_profile(user_id)
+    latest_profile_ss = st.session_state.get("user_data") or {}
+    latest_profile = latest_profile_db or latest_profile_ss or {}
+
+    consulted = bool(latest_profile_db) or bool(latest_plan) or bool(st.session_state.get("profile_complete"))
+    basic_info_value = (latest_profile.get("basic_info") or "").strip()
+
+    if not consulted:
         st.info("你还没完成「AI 咨询」的基础信息收集。先去咨询一次，我才能根据你的情况生成/调整方案。")
         if st.button("去 AI 咨询", use_container_width=True):
             st.switch_page("views/1_consultation.py")
     else:
+        if not basic_info_value:
+            st.warning("检测到你已有计划/已咨询记录，但基础信息缺失。请补充后再保存调整。")
+            basic_info_value = st.text_input("基本信息（身高/体重/年龄/性别）", value="")
+
         c1, c2 = st.columns(2)
         with c1:
             goal = st.text_input("健康目标", value=(latest_profile.get("goal") or ""))
@@ -83,8 +92,11 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
         )
 
         if st.button("保存调整并去重新生成方案", use_container_width=True):
+            if not (basic_info_value or "").strip():
+                st.error("请先补充基本信息（身高/体重/年龄/性别）。")
+                st.stop()
             new_profile = {
-                "basic_info": latest_profile.get("basic_info") or st.session_state.get("user_data", {}).get("basic_info") or "",
+                "basic_info": (basic_info_value or "").strip(),
                 "goal": goal,
                 "diet": diet,
                 "allergies": allergies,
