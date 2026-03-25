@@ -1,11 +1,20 @@
 import sqlite3
 import json
+import hashlib
 from datetime import datetime
 from config import DB_PATH
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth (
+                user_id TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL
+            )
+            """
+        )
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -77,6 +86,21 @@ def init_db():
         except sqlite3.OperationalError:
             pass
         conn.commit()
+    finally:
+        conn.close()
+
+def verify_or_create_user(user_id, password):
+    pwd_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute("SELECT password_hash FROM auth WHERE user_id = ?", (user_id,))
+        row = cur.fetchone()
+        if row:
+            return row[0] == pwd_hash
+        else:
+            conn.execute("INSERT INTO auth (user_id, password_hash) VALUES (?, ?)", (user_id, pwd_hash))
+            conn.commit()
+            return True
     finally:
         conn.close()
 

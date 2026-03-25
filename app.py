@@ -14,17 +14,22 @@ init_db()
 # ==========================================
 if "user_id" not in st.session_state or not st.session_state.user_id:
     st.title("👋 欢迎来到 HealMate AI")
-    st.markdown("为了保证你的数据隐私和定制化体验，请输入你的专属昵称或账号：")
+    st.markdown("为了保证你的数据隐私和定制化体验，请输入你的账号和密码：")
     
     with st.form("login_form"):
-        username = st.text_input("专属昵称 / 账号（请记住它以便下次登录）")
-        submitted = st.form_submit_button("进入系统", use_container_width=True)
+        username = st.text_input("专属昵称 / 账号")
+        password = st.text_input("密码（新用户将自动注册）", type="password")
+        submitted = st.form_submit_button("登录 / 注册", use_container_width=True)
         if submitted:
-            if username.strip():
-                st.session_state.user_id = username.strip()
-                st.rerun()
+            if not username.strip() or not password.strip():
+                st.error("账号和密码不能为空哦！")
             else:
-                st.error("昵称不能为空哦！")
+                from database import verify_or_create_user
+                if verify_or_create_user(username.strip(), password.strip()):
+                    st.session_state.user_id = username.strip()
+                    st.rerun()
+                else:
+                    st.error("密码错误！如果你是新用户，请换一个尚未被注册的账号名。")
     st.stop()
 
 # 侧边栏显示当前用户并提供退出选项
