@@ -1,5 +1,6 @@
 import streamlit as st
-from database import init_db
+from database import init_db, create_session, delete_session, get_user_id_by_session, verify_or_create_user
+from streamlit_cookies_controller import CookieController, RemoveEmptyElementContainer
 
 # ==========================================
 # 统一设置页面配置（必须在主入口最上方）
@@ -8,6 +9,17 @@ st.set_page_config(page_title="HealMate AI 健康管家", layout="centered", pag
 
 # 初始化数据库结构
 init_db()
+
+controller = CookieController()
+RemoveEmptyElementContainer()
+
+# 尝试从 Cookie 恢复登录态（解决 F5 刷新掉登录）
+if "user_id" not in st.session_state or not st.session_state.user_id:
+    token = controller.get("healmate_session")
+    if token:
+        restored_user_id = get_user_id_by_session(token)
+        if restored_user_id:
+            st.session_state.user_id = restored_user_id
 
 # ==========================================
 # 简单的多用户登录拦截
@@ -24,9 +36,11 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
             if not username.strip() or not password.strip():
                 st.error("账号和密码不能为空哦！")
             else:
-                from database import verify_or_create_user
                 if verify_or_create_user(username.strip(), password.strip()):
-                    st.session_state.user_id = username.strip()
+                    user_id = username.strip()
+                    st.session_state.user_id = user_id
+                    session_token = create_session(user_id)
+                    controller.set("healmate_session", session_token)
                     st.rerun()
                 else:
                     st.error("密码错误！如果你是新用户，请换一个尚未被注册的账号名。")
@@ -36,6 +50,10 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
 with st.sidebar:
     st.markdown(f"👤 当前用户: **{st.session_state.user_id}**")
     if st.button("退出登录"):
+        token = controller.get("healmate_session")
+        if token:
+            delete_session(token)
+            controller.remove("healmate_session")
         st.session_state.clear()
         st.rerun()
     st.markdown("---")

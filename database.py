@@ -1,7 +1,8 @@
 import sqlite3
 import json
 import hashlib
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from config import DB_PATH
 
 def init_db():
@@ -12,6 +13,16 @@ def init_db():
             CREATE TABLE IF NOT EXISTS auth (
                 user_id TEXT PRIMARY KEY,
                 password_hash TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+                token TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
             )
             """
         )
@@ -101,6 +112,59 @@ def verify_or_create_user(user_id, password):
             conn.execute("INSERT INTO auth (user_id, password_hash) VALUES (?, ?)", (user_id, pwd_hash))
             conn.commit()
             return True
+    finally:
+        conn.close()
+
+def create_session(user_id, ttl_days=30):
+    now = datetime.now()
+    token = uuid.uuid4().hex
+    expires_at = now + timedelta(days=ttl_days)
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO auth_sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (
+                token,
+                user_id,
+                now.strftime("%Y-%m-%d %H:%M:%S"),
+                expires_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ),
+        )
+        conn.commit()
+        return token
+    finally:
+        conn.close()
+
+def get_user_id_by_session(token):
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute(
+            "SELECT user_id, expires_at FROM auth_sessions WHERE token = ?",
+            (token,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        user_id, expires_at = row[0], row[1]
+        try:
+            expires_dt = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            conn.execute("DELETE FROM auth_sessions WHERE token = ?", (token,))
+            conn.commit()
+            return None
+        if expires_dt < datetime.now():
+            conn.execute("DELETE FROM auth_sessions WHERE token = ?", (token,))
+            conn.commit()
+            return None
+        return user_id
+    finally:
+        conn.close()
+
+def delete_session(token):
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("DELETE FROM auth_sessions WHERE token = ?", (token,))
+        conn.commit()
     finally:
         conn.close()
 
