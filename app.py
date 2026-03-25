@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from database import init_db, create_session, delete_session, get_user_id_by_session, verify_or_create_user
 from streamlit_cookies_controller import CookieController, RemoveEmptyElementContainer
@@ -40,7 +41,9 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
                     user_id = username.strip()
                     st.session_state.user_id = user_id
                     session_token = create_session(user_id)
-                    controller.set("healmate_session", session_token)
+                    controller.set("healmate_session", session_token, max_age=30*86400) # 保存30天
+                    # 必须给前端一点时间去执行 JS 写入 Cookie，否则直接 rerun 会打断写入
+                    time.sleep(0.5)
                     st.rerun()
                 else:
                     st.error("密码错误！如果你是新用户，请换一个尚未被注册的账号名。")
@@ -54,6 +57,8 @@ with st.sidebar:
         if token:
             delete_session(token)
             controller.remove("healmate_session")
+            # 同样给予前端时间删除 Cookie
+            time.sleep(0.5)
         st.session_state.clear()
         st.rerun()
     st.markdown("---")
