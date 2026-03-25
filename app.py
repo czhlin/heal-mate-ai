@@ -19,6 +19,26 @@ def safe_get_cookie(name: str):
     except TypeError:
         return None
 
+def safe_set_cookie(name: str, value: str, max_age: int = None):
+    # 修复库内部 __cookies 为 None 时的 TypeError bug
+    if getattr(controller, "_CookieController__cookies", None) is None:
+        setattr(controller, "_CookieController__cookies", {})
+    try:
+        if max_age:
+            controller.set(name, value, max_age=max_age)
+        else:
+            controller.set(name, value)
+    except Exception:
+        pass
+
+def safe_remove_cookie(name: str):
+    if getattr(controller, "_CookieController__cookies", None) is None:
+        setattr(controller, "_CookieController__cookies", {})
+    try:
+        controller.remove(name)
+    except Exception:
+        pass
+
 if "user_id" not in st.session_state or not st.session_state.user_id:
     token = safe_get_cookie("healmate_session")
     if token:
@@ -49,9 +69,9 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
                     user_id = username.strip()
                     st.session_state.user_id = user_id
                     session_token = create_session(user_id)
-                    controller.set("healmate_session", session_token, max_age=30*86400)
+                    safe_set_cookie("healmate_session", session_token, max_age=30*86400) # 保存30天
                     st.success("登录成功，请等待跳转...")
-                    time.sleep(1)
+                    time.sleep(1) # 稍微停顿一下给用户看成功提示，顺便给组件渲染时间
                     st.rerun()
                 else:
                     st.error("密码错误！如果你是新用户，请换一个尚未被注册的账号名。")
@@ -65,7 +85,7 @@ with st.sidebar:
         token = safe_get_cookie("healmate_session")
         if token:
             delete_session(token)
-            controller.remove("healmate_session")
+            safe_remove_cookie("healmate_session")
             time.sleep(0.5)
         st.session_state.clear()
         st.rerun()
