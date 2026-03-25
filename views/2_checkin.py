@@ -32,16 +32,21 @@ if not latest_tasks:
         st.switch_page("views/1_consultation.py")
     st.stop()
 
-completed_tasks, fb = load_checkin(user_id, today_str)
+completed_tasks, fb, ai_reply = load_checkin(user_id, today_str)
 
-if fb:
-    st.success(f"🎉 今日已打卡：{fb}")
+if completed_tasks or fb or ai_reply:
+    if fb:
+        st.success(f"🎉 今日已打卡：{fb}")
+    else:
+        st.success("🎉 今日已打卡")
     with st.expander("查看今日打卡详情", expanded=True):
         for t in latest_tasks:
             if t in completed_tasks:
                 st.markdown(f"✅ **{t}**")
             else:
                 st.markdown(f"⬜ {t}")
+        if ai_reply:
+            st.markdown(f"**💌 AI 的回应：**\n{ai_reply}")
 else:
     with st.form("daily_checkin_form"):
         st.write("### 勾选你今天完成的任务：")
