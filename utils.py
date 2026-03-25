@@ -5,9 +5,10 @@ from datetime import datetime
 from database import load_latest_user_profile
 from config import QUESTIONS, HISTORY_PATH
 
-def save_to_history(input_data, output_text):
+def save_to_history(input_data, output_text, user_id="default"):
     record = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "user_id": user_id,
         "input": input_data,
         "output": output_text
     }
@@ -35,8 +36,12 @@ def build_question(step, user_data, editing):
     return q
 
 def init_session_state():
+    user_id = st.session_state.get("user_id")
+    if not user_id:
+        return
+        
     if "messages" not in st.session_state:
-        latest = load_latest_user_profile()
+        latest = load_latest_user_profile(user_id)
         if latest:
             st.session_state.user_data = latest
             st.session_state.editing = False

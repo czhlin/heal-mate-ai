@@ -135,7 +135,7 @@ if st.session_state.profile_complete and not st.session_state.editing:
 
                     header = f"### 当前版本：{version['label']}"
                     message = f"{header}\n\n{plan}"
-                    save_to_history(latest_profile, message)
+                    save_to_history(latest_profile, message, user_id)
                     st.session_state.messages.append({"role": "assistant", "content": message})
                     st.rerun()
                 except Exception as e:
