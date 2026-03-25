@@ -14,6 +14,12 @@ st.set_page_config(page_title="AI健康管家 - 首页", layout="centered", page
 # 初始化 session state
 init_session_state()
 
+def safe_switch_page(page_path):
+    try:
+        st.switch_page(page_path)
+    except StreamlitAPIException:
+        st.error("页面未加载成功。请停止并重新启动 Streamlit 应用后再试一次。")
+
 # 自定义 CSS 优化首页卡片和布局
 st.markdown("""
     <style>
@@ -110,12 +116,6 @@ st.markdown("---")
 st.write("### 请选择你要进行的操作：")
 
 col1, col2 = st.columns(2)
-
-def safe_switch_page(page_path):
-    try:
-        st.switch_page(page_path)
-    except StreamlitAPIException:
-        st.error("页面未加载成功。请停止并重新启动 Streamlit 应用后再试一次。")
 
 with col1:
     if st.button("💬 去进行 AI 咨询\n\n(更新信息 / 生成方案)", use_container_width=True):
