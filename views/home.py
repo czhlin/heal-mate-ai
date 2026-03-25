@@ -59,40 +59,46 @@ else:
 # 快速调整入口
 with st.expander("⚙️ 快速调整（可选）", expanded=False):
     latest_profile = load_latest_user_profile(user_id) or st.session_state.get("user_data") or {}
-    c1, c2 = st.columns(2)
-    with c1:
-        goal = st.text_input("健康目标", value=(latest_profile.get("goal") or ""))
-        diet = st.text_input("饮食方式", value=(latest_profile.get("diet") or ""))
-        cooking_time = st.text_input("做饭时间", value=(latest_profile.get("cooking_time") or ""))
-    with c2:
-        allergies = st.text_input("过敏/不耐受", value=(latest_profile.get("allergies") or ""))
-        grocery = st.text_input("买菜渠道", value=(latest_profile.get("grocery") or ""))
-        kitchenware = st.text_input("现有厨具", value=(latest_profile.get("kitchenware") or ""))
+    has_basic_info = bool((latest_profile.get("basic_info") or "").strip())
+    if not has_basic_info:
+        st.info("你还没完成「AI 咨询」的基础信息收集。先去咨询一次，我才能根据你的情况生成/调整方案。")
+        if st.button("去 AI 咨询", use_container_width=True):
+            st.switch_page("views/1_consultation.py")
+    else:
+        c1, c2 = st.columns(2)
+        with c1:
+            goal = st.text_input("健康目标", value=(latest_profile.get("goal") or ""))
+            diet = st.text_input("饮食方式", value=(latest_profile.get("diet") or ""))
+            cooking_time = st.text_input("做饭时间", value=(latest_profile.get("cooking_time") or ""))
+        with c2:
+            allergies = st.text_input("过敏/不耐受", value=(latest_profile.get("allergies") or ""))
+            grocery = st.text_input("买菜渠道", value=(latest_profile.get("grocery") or ""))
+            kitchenware = st.text_input("现有厨具", value=(latest_profile.get("kitchenware") or ""))
 
-    selected_version = st.selectbox(
-        "要用哪个版本重新生成？",
-        options=list(PLAN_VERSIONS.keys()),
-        format_func=lambda k: PLAN_VERSIONS[k]["label"],
-        index=(list(PLAN_VERSIONS.keys()).index(latest_plan["version_key"]) if latest_plan else 0),
-    )
+        selected_version = st.selectbox(
+            "要用哪个版本重新生成？",
+            options=list(PLAN_VERSIONS.keys()),
+            format_func=lambda k: PLAN_VERSIONS[k]["label"],
+            index=(list(PLAN_VERSIONS.keys()).index(latest_plan["version_key"]) if latest_plan else 0),
+        )
 
-    if st.button("保存调整并去重新生成方案", use_container_width=True):
-        new_profile = {
-            "basic_info": latest_profile.get("basic_info") or st.session_state.get("user_data", {}).get("basic_info") or "",
-            "goal": goal,
-            "diet": diet,
-            "allergies": allergies,
-            "grocery": grocery,
-            "kitchenware": kitchenware,
-            "cooking_time": cooking_time,
-        }
-        save_user_profile(user_id, new_profile)
-        st.session_state.user_data = new_profile
-        st.session_state.profile_complete = True
-        st.session_state.editing = False
-        st.session_state.selected_plan_version = selected_version
-        st.session_state.generating_plan = True
-        st.switch_page("views/1_consultation.py")
+        if st.button("保存调整并去重新生成方案", use_container_width=True):
+            new_profile = {
+                "basic_info": latest_profile.get("basic_info") or st.session_state.get("user_data", {}).get("basic_info") or "",
+                "goal": goal,
+                "diet": diet,
+                "allergies": allergies,
+                "grocery": grocery,
+                "kitchenware": kitchenware,
+                "cooking_time": cooking_time,
+            }
+            save_user_profile(user_id, new_profile)
+            st.session_state.user_data = new_profile
+            st.session_state.profile_complete = True
+            st.session_state.editing = False
+            st.session_state.selected_plan_version = selected_version
+            st.session_state.generating_plan = True
+            st.switch_page("views/1_consultation.py")
 
 # 检查连续未打卡提醒
 last_checkin = get_last_checkin_date(user_id)
