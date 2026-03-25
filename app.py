@@ -14,18 +14,35 @@ init_db()
 controller = CookieController()
 RemoveEmptyElementContainer()
 
+# 增加一个标记，记录是否已经尝试过等待 Cookie 加载
+if "cookie_checked" not in st.session_state:
+    st.session_state.cookie_checked = False
+
 # 尝试从 cookie 恢复会话（如果当前 session_state 中没有 user_id）
 if "user_id" not in st.session_state or not st.session_state.user_id:
+    # controller.getAll() 会返回所有的 cookies。
+    # 如果第一次渲染，组件尚未挂载完成，通常会返回空字典 {}，但也可能是 None。
+    # 我们用一个小技巧：给它一点时间或者通过状态位来掩饰。
     token = controller.get("healmate_session")
     if token:
         user_id = get_user_id_by_session(token)
         if user_id:
             st.session_state.user_id = user_id
+            st.session_state.cookie_checked = True
 
 # ==========================================
 # 简单的多用户登录拦截
 # ==========================================
 if "user_id" not in st.session_state or not st.session_state.user_id:
+    # 为了防止刷新时的“登录框闪烁”：
+    # 第一帧（cookie_checked=False）时，我们显示一个加载提示，而不是立刻显示登录框。
+    # 然后自动触发 rerun 进入下一帧。
+    if not st.session_state.cookie_checked:
+        st.session_state.cookie_checked = True
+        st.markdown("<h3 style='text-align: center; margin-top: 50px;'>⏳ 正在验证身份信息，请稍候...</h3>", unsafe_allow_html=True)
+        time.sleep(0.5) # 给前端组件一点点时间把 Cookie 传回来
+        st.rerun()
+        
     st.title("👋 欢迎来到 HealMate AI")
     st.markdown("为了保证你的数据隐私和定制化体验，请输入你的账号和密码：")
     
