@@ -120,6 +120,25 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                tasks_json TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS check_ins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                check_date TEXT NOT NULL UNIQUE,
+                completed_tasks_json TEXT NOT NULL,
+                feedback TEXT
+            )
+            """
+        )
         conn.commit()
     finally:
         conn.close()
@@ -181,7 +200,70 @@ def clear_user_profiles():
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute("DELETE FROM users")
+        conn.execute("DELETE FROM daily_tasks")
+        conn.execute("DELETE FROM check_ins")
         conn.commit()
+    finally:
+        conn.close()
+
+def save_daily_tasks(tasks_list):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tasks_json = json.dumps(tasks_list, ensure_ascii=False)
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("INSERT INTO daily_tasks (created_at, tasks_json) VALUES (?, ?)", (now, tasks_json))
+        conn.commit()
+    finally:
+        conn.close()
+
+def load_latest_daily_tasks():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute("SELECT tasks_json FROM daily_tasks ORDER BY id DESC LIMIT 1")
+        row = cur.fetchone()
+        if row:
+            return json.loads(row[0])
+        return []
+    finally:
+        conn.close()
+
+def save_checkin(check_date, completed_tasks_list, feedback=""):
+    tasks_json = json.dumps(completed_tasks_list, ensure_ascii=False)
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            """
+            INSERT INTO check_ins (check_date, completed_tasks_json, feedback) 
+            VALUES (?, ?, ?)
+            ON CONFLICT(check_date) DO UPDATE SET 
+                completed_tasks_json=excluded.completed_tasks_json,
+                feedback=excluded.feedback
+            """,
+            (check_date, tasks_json, feedback)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def load_checkin(check_date):
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute("SELECT completed_tasks_json, feedback FROM check_ins WHERE check_date = ?", (check_date,))
+        row = cur.fetchone()
+        if row:
+            return json.loads(row[0]), row[1]
+        return [], ""
+    finally:
+        conn.close()
+
+def get_last_checkin_date():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute("SELECT check_date FROM check_ins ORDER BY check_date DESC LIMIT 1")
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        return None
     finally:
         conn.close()
 
@@ -299,10 +381,11 @@ def save_to_history(input_data, output_text):
     except IOError as e:
         print(f"保存历史记录失败: {str(e)}")
 
-def generate_plan(user_data, plan_version_key):
-    version = PLAN_VERSIONS.get(plan_version_key) or PLAN_VERSIONS["ideal"]
+def generate_plan(user_data, version_key):
+    version_req = PLAN_VERSIONS.get(version_key, PLAN_VERSIONS["ideal"])["requirements"]
+    
     prompt = f"""你是一位充满同理心、专业的AI健康管家。根据以下用户的详细信息生成高度个性化的健康方案。
-请用分段形式，每段开头用【饮食】【饮水】【睡眠】【运动】标注，并在最开头用一行写明【版本：{version['label']}】。
+请用分段形式，每段开头用【饮食】【饮水】【睡眠】【运动】标注。
 
 【用户信息】
 - 基本身体数据：{user_data.get('basic_info', '未提供')}
@@ -313,15 +396,12 @@ def generate_plan(user_data, plan_version_key):
 - 现有厨具：{user_data.get('kitchenware', '未提供')}
 - 做饭时间：{user_data.get('cooking_time', '未提供')}
 
-【生成版本】
-{version['requirements']}
-
 【方案要求】
-1. 饮食：必须具体到食材与可操作选项，绝对避开【过敏/不耐受】的食物。
-2. 饮水：用具体的杯数（如250ml/杯）表达目标，结合时间点提醒。
-3. 睡眠：给具体的入睡和起床时间区间，以及睡前小建议。
-4. 运动：结合目标，给出具体动作、时长或频次（考虑场地限制，如果是居家可以推荐徒手动作）。
-5. 态度：要温暖、包容。在结尾加一段特别鼓励的话，告诉用户“慢慢来，即使中断了也没关系，重启比坚持更勇敢”。
+{version_req}
+1. 饮水：用具体的杯数（如250ml/杯）表达目标，结合时间点提醒。
+2. 睡眠：给具体的入睡和起床时间区间，以及睡前小建议。
+3. 运动：结合目标，给出具体动作、时长或频次（考虑场地限制，如果是居家可以推荐徒手动作）。
+4. 态度：要温暖、包容。在结尾加一段特别鼓励的话，告诉用户“慢慢来，即使中断了也没关系，重启比坚持更勇敢”。
 """
     try:
         response = client.chat.completions.create(
@@ -337,6 +417,66 @@ def generate_plan(user_data, plan_version_key):
     except Exception as e:
         raise Exception(f"API 调用失败: {str(e)}")
 
+def extract_daily_tasks(plan_text):
+    prompt = f"""请从以下健康方案中提取出 3-5 个适合每天打卡的具体任务。
+要求：
+1. 任务必须非常具体且可操作（例如：“喝水 2000ml”、“晚上 11:30 睡觉”、“散步 20分钟”）。
+2. 只返回一个 JSON 数组，包含字符串列表，不要有其他任何说明或 markdown 格式标记。
+示例：["喝水 2000ml", "晚上 11:30 睡觉", "散步 20分钟"]
+
+健康方案：
+{plan_text}
+"""
+    try:
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": "你是一个只输出 JSON 数组的数据提取工具。"},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+            stream=False
+        )
+        content = response.choices[0].message.content.strip()
+        # 简单清理可能包含的 markdown json 标记
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.endswith("```"):
+            content = content[:-3]
+        return json.loads(content.strip())
+    except Exception as e:
+        print(f"提取任务失败: {e}")
+        # 兜底返回几个基础任务
+        return ["完成今日饮水目标", "按时入睡", "完成今日运动/活动"]
+
+def generate_feedback(completed_count, total_count):
+    if total_count == 0:
+        return "今天也很棒，好好休息！"
+    ratio = completed_count / total_count
+    
+    if ratio == 1:
+        prompt_tone = "用户完成了今天所有的打卡任务，给予热情、兴奋的赞美！"
+    elif ratio >= 0.5:
+        prompt_tone = "用户完成了大部分打卡任务，给予肯定和鼓励，告诉他已经做得很好了。"
+    else:
+        prompt_tone = "用户只完成了少部分任务，给予温暖的安慰，告诉他“没关系，今天能做一点点就是进步，接纳偶尔的疲惫，明天我们再试”。"
+        
+    prompt = f"今日任务总数：{total_count}，已完成：{completed_count}。\n请根据以下要求生成一段简短（20-40字）的鼓励话术：\n{prompt_tone}"
+    
+    try:
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": "你是一个温暖、接纳一切的AI健康陪伴者。"},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.6,
+            stream=False
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"打卡成功！已完成 {completed_count}/{total_count} 项，继续加油哦！"
+
 # 页面标题
 st.markdown('<h1 class="main-title">AI健康管家 🩺</h1>', unsafe_allow_html=True)
 st.markdown("---")
@@ -345,6 +485,52 @@ st.markdown("---")
 if api_key == "dummy_key":
     st.error("⚠️ 未检测到 DEEPSEEK_API_KEY。请在环境变量中配置后重试。")
     st.stop()
+
+# ----- 提醒与打卡模块 -----
+today_str = datetime.now().strftime("%Y-%m-%d")
+
+# 1. 检查连续未打卡
+last_checkin = get_last_checkin_date()
+if last_checkin and st.session_state.get("profile_complete"):
+    last_date = datetime.strptime(last_checkin, "%Y-%m-%d").date()
+    today_date = datetime.now().date()
+    if (today_date - last_date).days >= 2:
+        st.info("💚 我注意到你最近没打卡，是遇到困难了吗？没关系，休息一下，随时可以重新开始。需要调整目标的话，可以在左侧点击“修改信息”。")
+
+# 2. 渲染今日任务打卡 UI
+if st.session_state.get("profile_complete") and not st.session_state.get("editing"):
+    latest_tasks = load_latest_daily_tasks()
+    if latest_tasks:
+        completed_tasks, fb = load_checkin(today_str)
+        
+        st.subheader("📋 今日任务")
+        if fb:
+            st.success(f"今日已打卡：{fb}")
+            with st.expander("查看今日打卡详情"):
+                for t in latest_tasks:
+                    if t in completed_tasks:
+                        st.markdown(f"✅ {t}")
+                    else:
+                        st.markdown(f"⬜ {t}")
+        else:
+            with st.form("daily_checkin_form"):
+                st.write("勾选你今天完成的任务：")
+                checked_items = []
+                for t in latest_tasks:
+                    # 使用任务文本作为 key 确保唯一性
+                    if st.checkbox(t, key=f"task_{t}"):
+                        checked_items.append(t)
+                
+                submitted = st.form_submit_button("提交今日打卡")
+                if submitted:
+                    with st.spinner("正在生成反馈..."):
+                        feedback = generate_feedback(len(checked_items), len(latest_tasks))
+                        save_checkin(today_str, checked_items, feedback)
+                        st.success(feedback)
+                        time.sleep(1.5)
+                        st.rerun()
+        st.markdown("---")
+# -------------------------
 
 # 渲染聊天记录
 for msg in st.session_state.messages:
@@ -413,6 +599,11 @@ if st.session_state.profile_complete and not st.session_state.editing:
                 try:
                     latest_profile = load_latest_user_profile() or st.session_state.user_data
                     plan = generate_plan(latest_profile, st.session_state.selected_plan_version)
+                    
+                    # 提取打卡任务并保存
+                    tasks = extract_daily_tasks(plan)
+                    save_daily_tasks(tasks)
+                    
                     st.session_state.plan_text = plan
                     st.session_state.generating_plan = False
 
