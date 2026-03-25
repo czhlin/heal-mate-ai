@@ -76,8 +76,6 @@ def init_db():
             )
             """
         )
-        # SQLite 不支持直接 DROP CONSTRAINT 或者修改表结构来处理 UNIQUE 变化，
-        # 为了避免因为旧表导致的问题，我们尝试补充 user_id 列（如果列已存在则会忽略异常）
         try:
             conn.execute("ALTER TABLE users ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'")
         except sqlite3.OperationalError:
@@ -92,8 +90,53 @@ def init_db():
             pass
         try:
             conn.execute("ALTER TABLE check_ins ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'")
-            # 注意：原 check_ins 表有个 check_date UNIQUE，我们无法轻易修改。
-            # 如果是开发环境可以直接删库重建，但为了兼容，我们保留了对新库的完整约束。
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cur = conn.execute("PRAGMA table_info(check_ins)")
+            cols = [r[1] for r in cur.fetchall()]
+            cur = conn.execute("PRAGMA index_list(check_ins)")
+            index_names = [r[1] for r in cur.fetchall() if r[2]]
+            has_unique_check_date_only = False
+            for idx in index_names:
+                cur = conn.execute(f"PRAGMA index_info({idx})")
+                idx_cols = [r[2] for r in cur.fetchall()]
+                if idx_cols == ["check_date"]:
+                    has_unique_check_date_only = True
+                    break
+
+            if has_unique_check_date_only:
+                conn.execute("ALTER TABLE check_ins RENAME TO check_ins_old")
+                conn.execute(
+                    """
+                    CREATE TABLE check_ins (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT NOT NULL DEFAULT 'default',
+                        check_date TEXT NOT NULL,
+                        completed_tasks_json TEXT NOT NULL,
+                        feedback TEXT,
+                        UNIQUE(user_id, check_date)
+                    )
+                    """
+                )
+                if "user_id" in cols:
+                    conn.execute(
+                        """
+                        INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback)
+                        SELECT user_id, check_date, completed_tasks_json, feedback
+                        FROM check_ins_old
+                        """
+                    )
+                else:
+                    conn.execute(
+                        """
+                        INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback)
+                        SELECT 'default', check_date, completed_tasks_json, feedback
+                        FROM check_ins_old
+                        """
+                    )
+                conn.execute("DROP TABLE check_ins_old")
         except sqlite3.OperationalError:
             pass
         conn.commit()
