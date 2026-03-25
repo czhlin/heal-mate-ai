@@ -6,6 +6,65 @@ st.set_page_config(page_title="HealMate AI 健康管家", layout="centered", pag
 
 init_db()
 
+def hide_streamlit_ui():
+    st.markdown(
+        """
+        <style>
+        #MainMenu { display: none; }
+        footer { display: none; }
+        [data-testid="stToolbar"] { display: none; }
+        [data-testid="stToolbarActions"] { display: none; }
+        [data-testid="stDeployButton"] { display: none; }
+        [data-testid="stDecoration"] { display: none; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def apply_theme(theme: str):
+    if theme == "dark":
+        st.markdown(
+            """
+            <style>
+            :root {
+              --hm-bg: #0E1117;
+              --hm-text: #FAFAFA;
+              --hm-card: #161B22;
+              --hm-border: rgba(250,250,250,0.12);
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+            <style>
+            :root {
+              --hm-bg: #FFFFFF;
+              --hm-text: #0E1117;
+              --hm-card: #FFFFFF;
+              --hm-border: rgba(14,17,23,0.12);
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        """
+        <style>
+        .stApp { color: var(--hm-text); }
+        [data-testid="stAppViewContainer"] { background-color: var(--hm-bg); }
+        [data-testid="stSidebarContent"] { background-color: var(--hm-bg); }
+        [data-testid="stSidebar"] { border-right: 1px solid var(--hm-border); }
+        [data-testid="stChatMessage"] { background: transparent; }
+        div.stButton > button:first-child { border-color: var(--hm-border); }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # 使用 Streamlit 官方提供的纯前端 JS 注入方式写入 Cookie，抛弃各种不稳定且存在 iframe 跨域/线上安全限制的第三方库
 def set_cookie(name: str, value: str, max_age: int = 30*86400):
     # SameSite=Lax 保证在普通导航和刷新时能正确带上 Cookie
@@ -25,6 +84,15 @@ def hide_sidebar():
         """,
         unsafe_allow_html=True,
     )
+
+hide_streamlit_ui()
+
+if "theme" not in st.session_state:
+    cookies = getattr(st, "context", None)
+    theme_cookie = cookies.cookies.get("healmate_theme") if (cookies and hasattr(cookies, "cookies")) else None
+    st.session_state.theme = theme_cookie if theme_cookie in ("light", "dark") else "light"
+
+apply_theme(st.session_state.get("theme") or "light")
 
 # 核心：使用 Streamlit 官方原生的 st.context.cookies 在服务端直接读取请求头里的 Cookie。
 # 没有任何延迟、没有任何闪烁、不依赖 iframe！
@@ -71,6 +139,13 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
 
 with st.sidebar:
     st.markdown(f"👤 当前用户: **{st.session_state.user_id}**")
+    theme = st.session_state.get("theme") or "light"
+    theme_button = "🌙 切换深色" if theme == "light" else "☀️ 切换浅色"
+    if st.button(theme_button, use_container_width=True):
+        st.session_state.theme = "dark" if theme == "light" else "light"
+        set_cookie("healmate_theme", st.session_state.theme, max_age=365*86400)
+        time.sleep(0.2)
+        st.rerun()
     if st.button("退出登录"):
         cookies = getattr(st, "context", None)
         token = cookies.cookies.get("healmate_session") if (cookies and hasattr(cookies, "cookies")) else None
