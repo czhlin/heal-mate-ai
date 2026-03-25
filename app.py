@@ -1,59 +1,38 @@
 import time
 import streamlit as st
 from database import init_db, create_session, delete_session, get_user_id_by_session, verify_or_create_user
-from streamlit_cookies_controller import CookieController, RemoveEmptyElementContainer
 
 st.set_page_config(page_title="HealMate AI 健康管家", layout="centered", page_icon="🩺")
 
 init_db()
 
-controller = CookieController()
-RemoveEmptyElementContainer()
+# 使用 Streamlit 官方提供的纯前端 JS 注入方式写入 Cookie，抛弃各种不稳定且存在 iframe 跨域/线上安全限制的第三方库
+def set_cookie(name: str, value: str, max_age: int = 30*86400):
+    # SameSite=Lax 保证在普通导航和刷新时能正确带上 Cookie
+    js = f"document.cookie = '{name}={value}; max-age={max_age}; path=/; SameSite=Lax';"
+    st.components.v1.html(f"<script>{js}</script>", height=0)
 
-if "cookie_checked" not in st.session_state:
-    st.session_state.cookie_checked = False
+def remove_cookie(name: str):
+    js = f"document.cookie = '{name}=; max-age=0; path=/; SameSite=Lax';"
+    st.components.v1.html(f"<script>{js}</script>", height=0)
 
-def safe_get_cookie(name: str):
-    try:
-        return controller.get(name)
-    except TypeError:
-        return None
-
-def safe_set_cookie(name: str, value: str, max_age: int = None):
-    # 修复库内部 __cookies 为 None 时的 TypeError bug
-    if getattr(controller, "_CookieController__cookies", None) is None:
-        setattr(controller, "_CookieController__cookies", {})
-    try:
-        if max_age:
-            controller.set(name, value, max_age=max_age)
-        else:
-            controller.set(name, value)
-    except Exception:
-        pass
-
-def safe_remove_cookie(name: str):
-    if getattr(controller, "_CookieController__cookies", None) is None:
-        setattr(controller, "_CookieController__cookies", {})
-    try:
-        controller.remove(name)
-    except Exception:
-        pass
-
+# 核心：使用 Streamlit 官方原生的 st.context.cookies 在服务端直接读取请求头里的 Cookie。
+# 没有任何延迟、没有任何闪烁、不依赖 iframe！
 if "user_id" not in st.session_state or not st.session_state.user_id:
-    token = safe_get_cookie("healmate_session")
+    # 兼容处理：st.context 是新版本引入，如果遇到旧版可以退化
+    cookies = getattr(st, "context", None)
+    if cookies and hasattr(cookies, "cookies"):
+        token = cookies.cookies.get("healmate_session")
+    else:
+        # 极低版本备用方案（由于我们没锁版本，Railway 肯定是最新版，所以基本走上面）
+        token = None
+
     if token:
         user_id = get_user_id_by_session(token)
         if user_id:
             st.session_state.user_id = user_id
-            st.session_state.cookie_checked = True
 
 if "user_id" not in st.session_state or not st.session_state.user_id:
-    if not st.session_state.cookie_checked:
-        st.session_state.cookie_checked = True
-        st.markdown("<h3 style='text-align: center; margin-top: 50px;'>⏳ 正在验证身份信息，请稍候...</h3>", unsafe_allow_html=True)
-        time.sleep(0.5)
-        st.rerun()
-        
     st.title("👋 欢迎来到 HealMate AI")
     st.markdown("为了保证你的数据隐私和定制化体验，请输入你的账号和密码：")
     
@@ -69,7 +48,7 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
                     user_id = username.strip()
                     st.session_state.user_id = user_id
                     session_token = create_session(user_id)
-                    safe_set_cookie("healmate_session", session_token, max_age=30*86400) # 保存30天
+                    set_cookie("healmate_session", session_token, max_age=30*86400) # 保存30天
                     st.success("登录成功，请等待跳转...")
                     time.sleep(1) # 稍微停顿一下给用户看成功提示，顺便给组件渲染时间
                     st.rerun()
@@ -82,10 +61,11 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
 with st.sidebar:
     st.markdown(f"👤 当前用户: **{st.session_state.user_id}**")
     if st.button("退出登录"):
-        token = safe_get_cookie("healmate_session")
+        cookies = getattr(st, "context", None)
+        token = cookies.cookies.get("healmate_session") if (cookies and hasattr(cookies, "cookies")) else None
         if token:
             delete_session(token)
-            safe_remove_cookie("healmate_session")
+            remove_cookie("healmate_session")
             time.sleep(0.5)
         st.session_state.clear()
         st.rerun()
