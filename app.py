@@ -14,13 +14,13 @@ init_db()
 controller = CookieController()
 RemoveEmptyElementContainer()
 
-# 尝试从 Cookie 恢复登录态（解决 F5 刷新掉登录）
+# 尝试从 cookie 恢复会话（如果当前 session_state 中没有 user_id）
 if "user_id" not in st.session_state or not st.session_state.user_id:
     token = controller.get("healmate_session")
     if token:
-        restored_user_id = get_user_id_by_session(token)
-        if restored_user_id:
-            st.session_state.user_id = restored_user_id
+        user_id = get_user_id_by_session(token)
+        if user_id:
+            st.session_state.user_id = user_id
 
 # ==========================================
 # 简单的多用户登录拦截
@@ -42,12 +42,15 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
                     st.session_state.user_id = user_id
                     session_token = create_session(user_id)
                     controller.set("healmate_session", session_token, max_age=30*86400) # 保存30天
-                    # 必须给前端一点时间去执行 JS 写入 Cookie，否则直接 rerun 会打断写入
-                    time.sleep(0.5)
+                    st.success("登录成功，请等待跳转...")
+                    time.sleep(1) # 稍微停顿一下给用户看成功提示，顺便给组件渲染时间
                     st.rerun()
                 else:
                     st.error("密码错误！如果你是新用户，请换一个尚未被注册的账号名。")
-    st.stop()
+    
+    # 只有确实未登录才停止后续渲染
+    if "user_id" not in st.session_state or not st.session_state.user_id:
+        st.stop()
 
 # 侧边栏显示当前用户并提供退出选项
 with st.sidebar:
