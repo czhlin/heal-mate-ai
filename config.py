@@ -4,8 +4,18 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
+# 数据持久化目录配置
+# Railway 中可通过挂载 Volume 到 /data 并设置 HEALMATE_DATA_DIR=/data 来实现持久化
+DATA_DIR = os.getenv("HEALMATE_DATA_DIR", ".")
+if not os.path.exists(DATA_DIR):
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+    except Exception:
+        pass
+
 # 数据库路径配置
-DB_PATH = os.getenv("HEALMATE_DB_PATH", "healmate.db")
+DB_PATH = os.path.join(DATA_DIR, "healmate.db")
+HISTORY_PATH = os.path.join(DATA_DIR, "history.json")
 
 # API Key 配置
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
