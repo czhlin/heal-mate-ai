@@ -1,4 +1,5 @@
 import streamlit as st
+
 from core.consultation import build_question as _build_question
 from core.consultation import ensure_chat_state
 from core.state import ensure_user_state
