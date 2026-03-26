@@ -32,7 +32,8 @@ jobs:
       run: |
         pytest
 
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    # 私有仓库暂不使用 Codecov，直接在 Actions 日志中查看覆盖率即可
+    # - name: Upload coverage reports to Codecov
+    #   uses: codecov/codecov-action@v3
+    #   env:
+    #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
