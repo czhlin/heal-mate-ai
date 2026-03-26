@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 from config import DB_PATH
 
@@ -74,6 +75,17 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_state (
+                user_id TEXT PRIMARY KEY,
+                current_profile_id INTEGER,
+                current_plan_id INTEGER,
+                current_tasks_id INTEGER,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
         try:
             conn.execute("ALTER TABLE users ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'")
         except sqlite3.OperationalError:
@@ -142,7 +154,48 @@ def init_db():
                 conn.execute("DROP TABLE check_ins_old")
         except sqlite3.OperationalError:
             pass
+
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_state'")
+        if cur.fetchone():
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cur = conn.execute(
+                """
+                SELECT user_id FROM (
+                    SELECT user_id FROM users
+                    UNION
+                    SELECT user_id FROM plans
+                    UNION
+                    SELECT user_id FROM daily_tasks
+                )
+                """
+            )
+            user_ids = [r[0] for r in cur.fetchall() if r and r[0]]
+            for user_id in user_ids:
+                cur = conn.execute("SELECT id FROM users WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
+                row = cur.fetchone()
+                current_profile_id = row[0] if row else None
+
+                cur = conn.execute("SELECT id FROM plans WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
+                row = cur.fetchone()
+                current_plan_id = row[0] if row else None
+
+                cur = conn.execute("SELECT id FROM daily_tasks WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
+                row = cur.fetchone()
+                current_tasks_id = row[0] if row else None
+
+                if current_profile_id or current_plan_id or current_tasks_id:
+                    conn.execute(
+                        """
+                        INSERT INTO user_state (user_id, current_profile_id, current_plan_id, current_tasks_id, updated_at)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(user_id) DO UPDATE SET
+                            current_profile_id=COALESCE(excluded.current_profile_id, user_state.current_profile_id),
+                            current_plan_id=COALESCE(excluded.current_plan_id, user_state.current_plan_id),
+                            current_tasks_id=COALESCE(excluded.current_tasks_id, user_state.current_tasks_id),
+                            updated_at=excluded.updated_at
+                        """,
+                        (user_id, current_profile_id, current_plan_id, current_tasks_id, now),
+                    )
         conn.commit()
     finally:
         conn.close()
-

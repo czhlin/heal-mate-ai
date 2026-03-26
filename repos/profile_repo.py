@@ -7,7 +7,7 @@ def save_user_profile(user_id: str, user_data: dict):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = connect()
     try:
-        conn.execute(
+        cur = conn.execute(
             """
             INSERT INTO users (
                 user_id, created_at, updated_at, basic_info, goal, diet, allergies, grocery, kitchenware, cooking_time
@@ -28,6 +28,7 @@ def save_user_profile(user_id: str, user_data: dict):
             ),
         )
         conn.commit()
+        return cur.lastrowid
     finally:
         conn.close()
 
@@ -61,6 +62,34 @@ def load_latest_user_profile(user_id: str):
         conn.close()
 
 
+def load_user_profile_by_id(profile_id: int):
+    conn = connect()
+    try:
+        cur = conn.execute(
+            """
+            SELECT basic_info, goal, diet, allergies, grocery, kitchenware, cooking_time
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (profile_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "basic_info": row[0] or "",
+            "goal": row[1] or "",
+            "diet": row[2] or "",
+            "allergies": row[3] or "",
+            "grocery": row[4] or "",
+            "kitchenware": row[5] or "",
+            "cooking_time": row[6] or "",
+        }
+    finally:
+        conn.close()
+
+
 def clear_user_profiles(user_id: str):
     conn = connect()
     try:
@@ -71,4 +100,3 @@ def clear_user_profiles(user_id: str):
         conn.commit()
     finally:
         conn.close()
-

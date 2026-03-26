@@ -9,11 +9,12 @@ def save_daily_tasks(user_id: str, tasks_list: list):
     tasks_json = json.dumps(tasks_list, ensure_ascii=False)
     conn = connect()
     try:
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO daily_tasks (user_id, created_at, tasks_json) VALUES (?, ?, ?)",
             (user_id, now, tasks_json),
         )
         conn.commit()
+        return cur.lastrowid
     finally:
         conn.close()
 
@@ -32,3 +33,14 @@ def load_latest_daily_tasks(user_id: str):
     finally:
         conn.close()
 
+
+def load_daily_tasks_by_id(tasks_id: int):
+    conn = connect()
+    try:
+        cur = conn.execute("SELECT tasks_json FROM daily_tasks WHERE id = ? LIMIT 1", (tasks_id,))
+        row = cur.fetchone()
+        if row:
+            return json.loads(row[0])
+        return []
+    finally:
+        conn.close()

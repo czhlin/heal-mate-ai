@@ -5,6 +5,7 @@ from core.state import ensure_user_state
 from services.checkin_service import get_last_checkin_date
 from services.plan_service import load_latest_plan
 from services.profile_service import load_latest_user_profile, save_user_profile
+from services.user_state_service import has_profile
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
@@ -63,7 +64,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
     latest_profile_ss = st.session_state.get("user_data") or {}
     latest_profile = latest_profile_db or latest_profile_ss or {}
 
-    consulted = bool(latest_profile_db) or bool(latest_plan) or bool(st.session_state.get("profile_complete"))
+    consulted = bool(latest_profile_db) or bool(latest_plan) or has_profile(user_id)
     basic_info_value = (latest_profile.get("basic_info") or "").strip()
 
     if not consulted:
@@ -115,7 +116,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
 
 # 检查连续未打卡提醒
 last_checkin = get_last_checkin_date(user_id)
-if last_checkin and st.session_state.get("profile_complete"):
+if last_checkin and has_profile(user_id):
     last_date = datetime.strptime(last_checkin, "%Y-%m-%d").date()
     today_date = datetime.now().date()
     days_missed = (today_date - last_date).days

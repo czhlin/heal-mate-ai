@@ -6,7 +6,7 @@ from streamlit.errors import StreamlitAPIException
 from config import HARD_MODE_KEYWORDS
 from ai_service import generate_feedback, generate_checkin_reply
 from core.state import ensure_user_state
-from services.checkin_service import get_all_checkins, load_checkin, load_latest_daily_tasks, save_checkin
+from services.checkin_service import get_all_checkins, load_checkin, load_current_daily_tasks, save_checkin
 from services.plan_service import load_latest_plan
 
 # 获取当前用户 ID
@@ -26,7 +26,7 @@ if not st.session_state.get("profile_complete"):
         st.switch_page("views/1_consultation.py")
     st.stop()
 
-latest_tasks = load_latest_daily_tasks(user_id)
+latest_tasks = load_current_daily_tasks(user_id)
 if not latest_tasks:
     st.info("当前还没有可打卡的任务。请先前往「💬 AI咨询」生成一份健康方案。")
     if st.button("去生成方案"):
