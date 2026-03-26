@@ -25,14 +25,14 @@ user_status = ctx.status
 if user_status == UserStatus.NOT_STARTED:
     st.info("请先前往「💬 AI咨询」页面完成基本信息并生成方案，之后即可在这里打卡。")
     if st.button("去咨询"):
-        st.switch_page("views/1_consultation.py")
+        st.switch_page("pages/1_consultation.py")
     st.stop()
 
 latest_tasks = load_current_daily_tasks(user_id)
 if not latest_tasks:
     st.info("当前还没有可打卡的任务。请先前往「💬 AI咨询」生成一份健康方案。")
     if st.button("去生成方案"):
-        st.switch_page("views/1_consultation.py")
+        st.switch_page("pages/1_consultation.py")
     st.stop()
 
 completed_tasks, fb, ai_reply = load_checkin(user_id, today_str)
@@ -121,7 +121,7 @@ if st.session_state.get("trigger_hard_mode"):
             st.session_state.trigger_hard_mode = False
             st.session_state.selected_plan_version = "minimum"
             st.session_state.generating_plan = True
-            st.switch_page("views/1_consultation.py")
+            st.switch_page("pages/1_consultation.py")
 
 st.markdown("---")
 st.subheader("📅 我的打卡日记")
