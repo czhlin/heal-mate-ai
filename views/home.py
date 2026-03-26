@@ -1,14 +1,15 @@
 import streamlit as st
 from datetime import datetime
-from database import get_last_checkin_date, load_latest_plan, load_latest_user_profile, save_user_profile
 from config import PLAN_VERSIONS
-from utils import init_session_state
+from core.state import ensure_user_state
+from services.checkin_service import get_last_checkin_date
+from services.plan_service import load_latest_plan
+from services.profile_service import load_latest_user_profile, save_user_profile
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
 
-# 初始化 session state
-init_session_state()
+ensure_user_state(user_id)
 
 # 自定义 CSS 优化首页卡片和布局
 st.markdown("""

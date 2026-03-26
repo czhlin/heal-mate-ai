@@ -3,15 +3,16 @@ import time
 from datetime import datetime
 from streamlit.errors import StreamlitAPIException
 
-from database import load_latest_daily_tasks, load_checkin, save_checkin, load_latest_plan, get_all_checkins
 from config import HARD_MODE_KEYWORDS
 from ai_service import generate_feedback, generate_checkin_reply
-from utils import init_session_state
+from core.state import ensure_user_state
+from services.checkin_service import get_all_checkins, load_checkin, load_latest_daily_tasks, save_checkin
+from services.plan_service import load_latest_plan
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
 
-init_session_state()
+ensure_user_state(user_id)
 
 st.title("✅ 今日打卡")
 st.markdown("---")

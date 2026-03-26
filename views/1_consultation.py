@@ -2,21 +2,17 @@ import streamlit as st
 import time
 
 from config import DEEPSEEK_API_KEY, QUESTIONS, PLAN_VERSIONS, HARD_MODE_KEYWORDS
-from database import (
-    save_user_profile,
-    load_latest_user_profile,
-    clear_user_profiles,
-    save_daily_tasks,
-    save_plan,
-)
-from ai_service import generate_plan, extract_daily_tasks
-from utils import save_to_history, init_session_state, build_question
+from core.consultation import build_question, ensure_chat_state
+from core.state import ensure_user_state
+from services.history_service import save_to_history
+from services.plan_service import generate_and_save_plan
+from services.profile_service import clear_user_profiles, load_latest_user_profile, save_user_profile
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
 
-# 初始化状态
-init_session_state()
+ensure_user_state(user_id)
+ensure_chat_state(user_id)
 
 st.title("💬 AI健康管家")
 st.markdown("---")
@@ -130,12 +126,7 @@ if st.session_state.profile_complete and not st.session_state.editing:
             with st.spinner(f"🧠 正在生成 {version['label']} ..."):
                 try:
                     latest_profile = load_latest_user_profile(user_id) or st.session_state.user_data
-                    plan = generate_plan(latest_profile, st.session_state.selected_plan_version)
-                    
-                    # 提取打卡任务并保存
-                    tasks = extract_daily_tasks(plan)
-                    save_daily_tasks(user_id, tasks)
-                    save_plan(user_id, st.session_state.selected_plan_version, plan)
+                    plan, tasks = generate_and_save_plan(user_id, latest_profile, st.session_state.selected_plan_version)
                     
                     st.session_state.plan_text = plan
                     st.session_state.generating_plan = False
