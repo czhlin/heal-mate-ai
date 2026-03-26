@@ -1,5 +1,6 @@
 import streamlit as st
 
+from ai_service import normalize_consultation_answer
 from config import DEEPSEEK_API_KEY, HARD_MODE_KEYWORDS, PLAN_VERSIONS, QUESTIONS
 from core.consultation import build_question, ensure_chat_state
 from core.state import ensure_user_state
@@ -75,11 +76,28 @@ if st.session_state.current_step < len(QUESTIONS):
 
         if st.session_state.editing and user_input == "跳过":
             reply_text = hard_mode_reply + "好的，保持不变。"
+            st.session_state.current_step += 1
         else:
-            st.session_state.user_data[key] = user_input
-            reply_text = hard_mode_reply + current_q["reply"]
-
-        st.session_state.current_step += 1
+            normalized = normalize_consultation_answer(
+                question_key=key,
+                question_text=current_q["question"],
+                user_input=user_input,
+                is_hard_mode=is_hard_mode,
+                existing_value=st.session_state.user_data.get(key),
+            )
+            assistant_reply = normalized.get("assistant_reply") or current_q["reply"]
+            value = normalized.get("value") or user_input
+            if normalized.get("sufficient"):
+                st.session_state.user_data[key] = value
+                reply_text = hard_mode_reply + assistant_reply
+                st.session_state.current_step += 1
+            else:
+                follow_up = normalized.get("follow_up") or current_q["question"]
+                ai_msg = f"{hard_mode_reply}{assistant_reply}\n\n{follow_up}"
+                st.session_state.messages.append({"role": "assistant", "content": ai_msg})
+                with st.chat_message("assistant"):
+                    st.markdown(ai_msg)
+                st.rerun()
 
         if st.session_state.current_step < len(QUESTIONS):
             next_q_text = build_question(
