@@ -82,6 +82,11 @@ def apply_theme(theme: str):
           background: var(--hm-bg) !important;
           border-top: 1px solid var(--hm-border) !important;
         }
+        [data-testid="stBottomBlockContainer"] *,
+        [data-testid="stBottomContainer"] *,
+        [data-testid="stBottom"] * {
+          background-color: transparent !important;
+        }
 
         .stApp, .stApp p, .stApp span, .stApp label, .stApp li,
         .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
@@ -157,6 +162,11 @@ def apply_theme(theme: str):
         [data-testid="stChatInputContainer"],
         [data-testid="stChatInputContainer"] > div {
           background: var(--hm-bg) !important;
+        }
+        [data-testid="stChatInputContainer"] div,
+        [data-testid="stChatInputContainer"] section,
+        [data-testid="stChatInputContainer"] form {
+          background: transparent !important;
         }
         [data-testid="stChatInput"] textarea {
           background-color: var(--hm-input) !important;
@@ -236,7 +246,7 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
     st.title("👋 欢迎来到 HealMate AI")
     st.markdown("为了保证你的数据隐私和定制化体验，请输入你的账号和密码：")
     
-    with st.form("login_form"):
+    with st.form("login_form", enter_to_submit=False):
         username = st.text_input("专属昵称 / 账号")
         password = st.text_input("密码（新用户将自动注册）", type="password")
         submitted = st.form_submit_button("登录 / 注册", use_container_width=True)
