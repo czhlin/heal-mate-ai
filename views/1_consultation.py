@@ -4,6 +4,7 @@ import time
 from config import DEEPSEEK_API_KEY, QUESTIONS, PLAN_VERSIONS, HARD_MODE_KEYWORDS
 from core.consultation import build_question, ensure_chat_state
 from core.state import ensure_user_state
+from core.user_context import get_user_status, UserStatus
 from services.history_service import save_to_history
 from services.plan_service import generate_and_save_plan
 from services.profile_service import clear_user_profiles, load_latest_user_profile, save_user_profile
@@ -40,7 +41,6 @@ with st.sidebar:
             {"role": "assistant", "content": build_question(0, latest, True)}
         ]
         st.session_state.current_step = 0
-        st.session_state.profile_complete = False
         st.session_state.selected_plan_version = None
         st.session_state.plan_text = None
         st.session_state.generating_plan = False
@@ -90,7 +90,6 @@ if st.session_state.current_step < len(QUESTIONS):
             ai_msg = f"{reply_text}\n\n{next_q_text}"
         else:
             st.session_state.editing = False
-            st.session_state.profile_complete = True
             save_user_profile(user_id, st.session_state.user_data)
             ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案。你想要哪个版本？"
             
@@ -101,7 +100,10 @@ if st.session_state.current_step < len(QUESTIONS):
         st.rerun()
 
 # 分层方案生成 UI
-if st.session_state.profile_complete and not st.session_state.editing:
+user_status = get_user_status(user_id)
+is_profile_ready = user_status in [UserStatus.PROFILE_READY, UserStatus.PLAN_READY]
+
+if is_profile_ready and not st.session_state.editing:
     st.markdown("---")
     st.subheader("选择方案版本")
     c1, c2, c3 = st.columns(3)

@@ -3,6 +3,7 @@ import streamlit as st
 from config import QUESTIONS
 from services.profile_service import load_latest_user_profile, load_user_profile_by_id
 from services.user_state_service import get_user_state
+from core.user_context import get_user_status, UserStatus
 
 
 def build_question(step, user_data, editing):
@@ -30,6 +31,7 @@ def ensure_chat_state(user_id: str):
         latest = load_user_profile_by_id(current_profile_id)
     else:
         latest = load_latest_user_profile(user_id)
+        
     if latest:
         st.session_state.user_data = latest
         st.session_state.editing = False
@@ -48,8 +50,6 @@ def ensure_chat_state(user_id: str):
         )
         st.session_state.messages = msgs
         st.session_state.current_step = len(QUESTIONS)
-        st.session_state.profile_complete = True
     else:
         st.session_state.editing = False
         st.session_state.messages = [{"role": "assistant", "content": build_question(0, {}, False)}]
-        st.session_state.profile_complete = False

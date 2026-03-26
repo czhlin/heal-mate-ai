@@ -2,6 +2,7 @@ import streamlit as st
 
 from services.profile_service import load_latest_user_profile, load_user_profile_by_id
 from services.user_state_service import get_user_state
+from core.user_context import get_user_status, UserStatus
 
 
 def ensure_user_state(user_id: str):
@@ -10,8 +11,6 @@ def ensure_user_state(user_id: str):
 
     if "user_data" not in st.session_state:
         st.session_state.user_data = {}
-    if "profile_complete" not in st.session_state:
-        st.session_state.profile_complete = False
     if "editing" not in st.session_state:
         st.session_state.editing = False
     if "selected_plan_version" not in st.session_state:
@@ -29,4 +28,3 @@ def ensure_user_state(user_id: str):
         profile = load_latest_user_profile(user_id)
     if profile:
         st.session_state.user_data = profile
-        st.session_state.profile_complete = True

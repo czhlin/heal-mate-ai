@@ -6,6 +6,7 @@ from streamlit.errors import StreamlitAPIException
 from config import HARD_MODE_KEYWORDS
 from ai_service import generate_feedback, generate_checkin_reply
 from core.state import ensure_user_state
+from core.user_context import get_user_status, UserStatus
 from services.checkin_service import get_all_checkins, load_checkin, load_current_daily_tasks, save_checkin
 from services.plan_service import load_latest_plan
 
@@ -18,9 +19,10 @@ st.title("✅ 今日打卡")
 st.markdown("---")
 
 today_str = datetime.now().strftime("%Y-%m-%d")
+user_status = get_user_status(user_id)
 
 # 必须先完成问卷并且生成过任务才能打卡
-if not st.session_state.get("profile_complete"):
+if user_status == UserStatus.NOT_STARTED:
     st.info("请先前往「💬 AI咨询」页面完成基本信息并生成方案，之后即可在这里打卡。")
     if st.button("去咨询"):
         st.switch_page("views/1_consultation.py")

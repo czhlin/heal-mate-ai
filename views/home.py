@@ -2,15 +2,16 @@ import streamlit as st
 from datetime import datetime
 from config import PLAN_VERSIONS
 from core.state import ensure_user_state
+from core.user_context import get_user_status, UserStatus
 from services.checkin_service import get_last_checkin_date
 from services.plan_service import load_latest_plan
 from services.profile_service import load_latest_user_profile, save_user_profile
-from services.user_state_service import has_profile
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
 
 ensure_user_state(user_id)
+user_status = get_user_status(user_id)
 
 # 自定义 CSS 优化首页卡片和布局
 st.markdown("""
@@ -64,7 +65,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
     latest_profile_ss = st.session_state.get("user_data") or {}
     latest_profile = latest_profile_db or latest_profile_ss or {}
 
-    consulted = bool(latest_profile_db) or bool(latest_plan) or has_profile(user_id)
+    consulted = user_status != UserStatus.NOT_STARTED
     basic_info_value = (latest_profile.get("basic_info") or "").strip()
 
     if not consulted:
@@ -108,7 +109,6 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
             }
             save_user_profile(user_id, new_profile)
             st.session_state.user_data = new_profile
-            st.session_state.profile_complete = True
             st.session_state.editing = False
             st.session_state.selected_plan_version = selected_version
             st.session_state.generating_plan = True
@@ -116,7 +116,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
 
 # 检查连续未打卡提醒
 last_checkin = get_last_checkin_date(user_id)
-if last_checkin and has_profile(user_id):
+if last_checkin and consulted:
     last_date = datetime.strptime(last_checkin, "%Y-%m-%d").date()
     today_date = datetime.now().date()
     days_missed = (today_date - last_date).days
