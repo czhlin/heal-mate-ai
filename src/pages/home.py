@@ -75,7 +75,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
     if not consulted:
         st.info("你还没完成「AI 咨询」的基础信息收集。先去咨询一次，我才能根据你的情况生成/调整方案。")
         if st.button("去 AI 咨询", use_container_width=True):
-            st.switch_page("views/1_consultation.py")
+            st.switch_page("pages/1_consultation.py")
     else:
         if not basic_info_value:
             st.warning("检测到你已有计划/已咨询记录，但基础信息缺失。请补充后再保存调整。")
@@ -116,7 +116,7 @@ with st.expander("⚙️ 快速调整（可选）", expanded=False):
             st.session_state.editing = False
             st.session_state.selected_plan_version = selected_version
             st.session_state.generating_plan = True
-            st.switch_page("views/1_consultation.py")
+            st.switch_page("pages/1_consultation.py")
 
 # 检查连续未打卡提醒
 last_checkin = get_last_checkin_date(user_id)
@@ -135,7 +135,7 @@ if last_checkin and consulted:
             if st.button("🌱 帮我换成「最小行动方案」重新开始"):
                 st.session_state.selected_plan_version = "minimum"
                 st.session_state.generating_plan = True
-                st.switch_page("views/1_consultation.py")
+                st.switch_page("pages/1_consultation.py")
     elif days_missed == 2:
         st.info(
             "💚 我注意到你最近没打卡，是遇到困难了吗？没关系，休息一下，随时可以重新开始。需要调整目标的话，可以随时修改。"
@@ -148,11 +148,11 @@ col1, col2 = st.columns(2)
 
 with col1:
     if st.button("💬 去进行 AI 咨询\n\n(更新信息 / 生成方案)", use_container_width=True):
-        st.switch_page("views/1_consultation.py")
+        st.switch_page("pages/1_consultation.py")
 
 with col2:
     if st.button("✅ 去完成今日打卡\n\n(记录进度 / 获取鼓励)", use_container_width=True):
-        st.switch_page("views/2_checkin.py")
+        st.switch_page("pages/2_checkin.py")
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.caption("提示：初次使用请先点击「AI 咨询」生成专属你的健康方案。")
