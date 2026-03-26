@@ -6,20 +6,20 @@ from streamlit.errors import StreamlitAPIException
 from config import HARD_MODE_KEYWORDS
 from ai_service import generate_feedback, generate_checkin_reply
 from core.state import ensure_user_state
-from core.user_context import get_user_status, UserStatus
+from core.user_context import load_user_context, UserStatus
 from services.checkin_service import get_all_checkins, load_checkin, load_current_daily_tasks, save_checkin
-from services.plan_service import load_current_plan
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
 
 ensure_user_state(user_id)
+ctx = load_user_context(user_id)
 
 st.title("✅ 今日打卡")
 st.markdown("---")
 
 today_str = datetime.now().strftime("%Y-%m-%d")
-user_status = get_user_status(user_id)
+user_status = ctx.status
 
 # 必须先完成问卷并且生成过任务才能打卡
 if user_status == UserStatus.NOT_STARTED:
@@ -74,8 +74,7 @@ else:
                 is_hard_mode = True
             
             # 如果当前已经是 minimum，就不需要再提示降级了
-            current_plan = load_current_plan(user_id)
-            is_already_minimum = current_plan and current_plan.get("version_key") == "minimum"
+            is_already_minimum = ctx.plan and ctx.plan.get("version_key") == "minimum"
             
             if is_hard_mode and not is_already_minimum:
                 st.session_state.trigger_hard_mode = True

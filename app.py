@@ -2,7 +2,7 @@ import time
 import streamlit as st
 from repos.migrations import init_db
 from services.auth_service import create_session, delete_session, get_user_id_by_session, verify_or_create_user
-from ui.theme import apply_theme, hide_streamlit_ui
+from ui.theme import apply_theme, hide_sidebar, hide_streamlit_ui, show_sidebar
 
 st.set_page_config(page_title="HealMate AI 健康管家", layout="centered", page_icon="🩺")
 
@@ -27,6 +27,10 @@ if "theme" not in st.session_state:
 
 apply_theme(st.session_state.get("theme") or "light")
 
+home_page = st.Page("views/home.py", title="首页", icon="🏠", default=True)
+consultation_page = st.Page("views/1_consultation.py", title="AI 咨询", icon="💬")
+checkin_page = st.Page("views/2_checkin.py", title="今日打卡", icon="✅")
+
 # 核心：使用 Streamlit 官方原生的 st.context.cookies 在服务端直接读取请求头里的 Cookie。
 # 没有任何延迟、没有任何闪烁、不依赖 iframe！
 if "user_id" not in st.session_state or not st.session_state.user_id:
@@ -44,6 +48,7 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
             st.session_state.user_id = user_id
 
 if "user_id" not in st.session_state or not st.session_state.user_id:
+    hide_sidebar()
     st.title("👋 欢迎来到 HealMate AI")
     st.markdown("为了保证你的数据隐私和定制化体验，请输入你的账号和密码：")
     
@@ -62,12 +67,14 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
                     set_cookie("healmate_session", session_token, max_age=30*86400) # 保存30天
                     st.success("登录成功，请等待跳转...")
                     time.sleep(1) # 稍微停顿一下给用户看成功提示，顺便给组件渲染时间
-                    st.rerun()
+                    st.switch_page("views/home.py")
                 else:
                     st.error("密码错误！如果你是新用户，请换一个尚未被注册的账号名。")
     
     if "user_id" not in st.session_state or not st.session_state.user_id:
         st.stop()
+
+show_sidebar()
 
 with st.sidebar:
     st.markdown(f"👤 当前用户: **{st.session_state.user_id}**")
@@ -88,10 +95,6 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
     st.markdown("---")
-
-home_page = st.Page("views/home.py", title="首页", icon="🏠", default=True)
-consultation_page = st.Page("views/1_consultation.py", title="AI 咨询", icon="💬")
-checkin_page = st.Page("views/2_checkin.py", title="今日打卡", icon="✅")
 
 # 挂载路由和侧边栏
 pg = st.navigation({

@@ -18,7 +18,22 @@ def hide_sidebar():
     st.markdown(
         """
         <style>
-        section[data-testid="stSidebar"] { display: none; }
+        section[data-testid="stSidebar"] { display: none !important; }
+        [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+        .stSidebarCollapsedControl { display: none !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def show_sidebar():
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stSidebar"] { display: block !important; }
+        [data-testid="stSidebarCollapsedControl"] { display: block !important; }
+        .stSidebarCollapsedControl { display: block !important; }
         </style>
         """,
         unsafe_allow_html=True,

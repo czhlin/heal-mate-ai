@@ -2,16 +2,15 @@ import streamlit as st
 from datetime import datetime
 from config import PLAN_VERSIONS
 from core.state import ensure_user_state
-from core.user_context import get_user_status, UserStatus
+from core.user_context import load_user_context, UserStatus
 from services.checkin_service import get_last_checkin_date
-from services.plan_service import load_current_plan
-from services.profile_service import load_latest_user_profile, save_user_profile
+from services.profile_service import save_user_profile
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
 
 ensure_user_state(user_id)
-user_status = get_user_status(user_id)
+ctx = load_user_context(user_id)
 
 # 自定义 CSS 优化首页卡片和布局
 st.markdown("""
@@ -29,7 +28,8 @@ st.markdown("""
         text-align: center;
         margin-bottom: 2rem;
     }
-    div.stButton > button:first-child {
+    /* 仅限主内容区的按钮，避免污染侧边栏 (stSidebar) */
+    section[data-testid="stMain"] div.stButton > button:first-child {
         height: 80px;
         font-size: 1.2rem;
         font-weight: bold;
@@ -39,7 +39,7 @@ st.markdown("""
         color: #333;
         transition: all 0.3s ease;
     }
-    div.stButton > button:first-child:hover {
+    section[data-testid="stMain"] div.stButton > button:first-child:hover {
         border-color: #4CAF50;
         color: #4CAF50;
         transform: translateY(-2px);
@@ -51,7 +51,7 @@ st.markdown("""
 st.markdown('<h1 class="main-title">HealMate AI 🩺</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">你的专属健康陪伴者，接纳一切不完美，慢慢来。</p>', unsafe_allow_html=True)
 
-latest_plan = load_current_plan(user_id)
+latest_plan = ctx.plan
 if latest_plan:
     version = PLAN_VERSIONS.get(latest_plan["version_key"]) or PLAN_VERSIONS["ideal"]
     with st.expander(f"📌 当前健康计划（{version['label']} · {latest_plan['created_at']}）", expanded=True):
@@ -61,11 +61,10 @@ else:
 
 # 快速调整入口
 with st.expander("⚙️ 快速调整（可选）", expanded=False):
-    latest_profile_db = load_latest_user_profile(user_id)
     latest_profile_ss = st.session_state.get("user_data") or {}
-    latest_profile = latest_profile_db or latest_profile_ss or {}
+    latest_profile = ctx.profile or latest_profile_ss or {}
 
-    consulted = user_status != UserStatus.NOT_STARTED
+    consulted = ctx.status != UserStatus.NOT_STARTED
     basic_info_value = (latest_profile.get("basic_info") or "").strip()
 
     if not consulted:
