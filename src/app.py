@@ -14,7 +14,6 @@
 import time
 
 import streamlit as st
-
 from repos.migrations import init_db
 from services.auth_service import create_session, delete_session, get_user_id_by_session, verify_or_create_user
 from ui.theme import apply_theme, hide_sidebar, hide_streamlit_ui, show_sidebar
@@ -65,9 +64,9 @@ apply_theme(st.session_state.get("theme") or "light")
 # -----------------------------------------------------------------------------
 # 5. 路由注册 (Route Registration)
 # -----------------------------------------------------------------------------
-home_page = st.Page("views/home.py", title="首页", icon="🏠", default=True)
-consultation_page = st.Page("views/1_consultation.py", title="AI 咨询", icon="💬")
-checkin_page = st.Page("views/2_checkin.py", title="今日打卡", icon="✅")
+home_page = st.Page("pages/home.py", title="首页", icon="🏠", default=True)
+consultation_page = st.Page("pages/1_consultation.py", title="AI 咨询", icon="💬")
+checkin_page = st.Page("pages/2_checkin.py", title="今日打卡", icon="✅")
 
 # -----------------------------------------------------------------------------
 # 6. 鉴权网关与会话恢复 (Authentication & Session Recovery)
@@ -113,7 +112,7 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
                     set_cookie("healmate_session", session_token, max_age=30 * 86400)  # 保存30天
                     st.success("登录成功，请等待跳转...")
                     time.sleep(1)  # 稍微停顿一下给用户看成功提示，顺便给组件渲染时间
-                    st.switch_page("views/home.py")
+                    st.rerun()  # 这里直接重新运行，由下方 navigation 接管页面
                 else:
                     st.error("密码错误！如果你是新用户，请换一个尚未被注册的账号名。")
 
