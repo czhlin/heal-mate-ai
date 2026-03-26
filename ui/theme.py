@@ -7,10 +7,7 @@ def hide_streamlit_ui():
         <style>
         #MainMenu { display: none; }
         footer { display: none; }
-        [data-testid="stToolbar"] { display: none; }
-        [data-testid="stToolbarActions"] { display: none; }
         [data-testid="stDeployButton"] { display: none; }
-        [data-testid="stDecoration"] { display: none; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -83,6 +80,8 @@ def apply_theme(theme: str):
         [data-testid="stSidebarContent"] { background-color: var(--hm-bg2); }
         [data-testid="stSidebar"] { border-right: 1px solid var(--hm-border); }
         [data-testid="stHeader"] { background: transparent; }
+        [data-testid="stHeader"] * { color: var(--hm-text) !important; }
+        [data-testid="stHeader"] svg { fill: var(--hm-text) !important; }
         [data-testid="stBottomBlockContainer"],
         [data-testid="stBottomContainer"],
         [data-testid="stBottom"] {
@@ -202,4 +201,3 @@ def apply_theme(theme: str):
         """,
         unsafe_allow_html=True,
     )
-

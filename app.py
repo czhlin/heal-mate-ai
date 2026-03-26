@@ -2,7 +2,7 @@ import time
 import streamlit as st
 from repos.migrations import init_db
 from services.auth_service import create_session, delete_session, get_user_id_by_session, verify_or_create_user
-from ui.theme import apply_theme, hide_sidebar, hide_streamlit_ui
+from ui.theme import apply_theme, hide_streamlit_ui
 
 st.set_page_config(page_title="HealMate AI 健康管家", layout="centered", page_icon="🩺")
 
@@ -44,7 +44,6 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
             st.session_state.user_id = user_id
 
 if "user_id" not in st.session_state or not st.session_state.user_id:
-    hide_sidebar()
     st.title("👋 欢迎来到 HealMate AI")
     st.markdown("为了保证你的数据隐私和定制化体验，请输入你的账号和密码：")
     
