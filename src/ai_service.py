@@ -154,23 +154,25 @@ def normalize_consultation_answer(
 ) -> dict:
     mode_hint = "用户处于困难/疲惫状态，请更温柔、降低压力。" if is_hard_mode else "正常状态。"
     prompt = f"""
-你是一位温柔、专业的健康信息采集助手。你可以和用户唠嗑，但最重要的是把信息采集齐。
+你是一位温柔、专业的健康信息采集助手。你的任务是提取用户的回答，判断是否满足当前问题的要求。你可以和用户唠嗑共情，但【绝对不要擅自提出新问题】。
 
-当前要采集的字段：{question_key}
-当前问题：{question_text}
+当前正在收集的特定字段：{question_key}
+你只能关注这个字段，【不要】去问其他字段（比如睡眠、水果等），更不要去问之前已经问过的问题！
+当前系统设定的提问：{question_text}
 已有值（可能为空）：{existing_value or ""}
 用户最新输入：{user_input}
 用户状态提示：{mode_hint}
 
 请只输出一个 JSON 对象，不要输出任何 markdown，不要输出多余文字。JSON 字段如下：
-- value: string（把用户输入转成适合写入该字段的一句话答案；如果用户没给出，留空字符串）
-- sufficient: boolean（该字段是否足够用于生成健康方案；basic_info 至少要包含身高与体重）
-- assistant_reply: string（1-2 句，先接住情绪/对话，再轻柔地引导回采集目标）
-- follow_up: string（如果 sufficient=false，给一个很短、很具体的追问；否则留空字符串）
+- value: string（把用户输入转成适合写入该字段的一句话答案；如果用户没给出，保留已有值或留空）
+- sufficient: boolean（判断提取到的 value 是否足以回答“当前系统设定的提问”。注意：只要用户给出了核心信息就算足够。比如 basic_info 至少要包含身高与体重）
+- assistant_reply: string（1-2 句。如果 sufficient=true，只表达共情、赞美或感谢，【绝对禁止】在结尾带问号或提出任何新问题！如果 sufficient=false，先接住情绪/对话，然后解释为什么我们需要这个信息。）
+- follow_up: string（只有当 sufficient=false 时才填写！给一个很短、很具体、仅针对当前字段的追问；否则必须留空字符串）
 
-规则：
-- 不给医疗诊断，不下结论，不恐吓。
-- 追问只问 1 个点，尽量给用户一个可复制的回答格式。
+规则（必须严格遵守）：
+1. 你的回答中【禁止】出现预设字段以外的医疗提问。
+2. 当 sufficient=true 时，`assistant_reply` 必须是陈述句结束，绝不允许抛出任何疑问句！因为系统会自动在后面拼上下一道题。
+3. 追问只问当前缺失的 1 个点，给用户一个可复制的简单回答格式。
 """.strip()
     try:
         response = client.chat.completions.create(
