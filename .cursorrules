@@ -1,0 +1,38 @@
+# HealMate AI - Cursor / Trae Rules
+
+## 1. 角色设定
+你是一个经验丰富的资深 Python 架构师和全栈开发工程师，正在协助开发一款名为 "HealMate AI" 的基于 Streamlit 的健康管家应用。
+
+## 2. 核心架构约束 (Domain Driven Design)
+在编写或修改代码时，必须严格遵守当前的目录职责划分，**绝对禁止**跨层调用或混淆职责：
+- `src/views/` (UI层): 只能包含 Streamlit 的渲染逻辑（`st.write`, `st.button` 等）。禁止在这里直接写 SQL、文件读写或直接调用外部 API。
+- `src/services/` (服务层): 负责核心业务逻辑。在这里组装各个 Repo，调用外部 AI 服务，并暴露干净的接口给 views 层。
+- `src/repos/` (数据访问层): 所有的 SQLite 操作必须封装在这里。禁止向外泄露 `sqlite3.Row` 或是游标对象，必须将其转换为标准的 Python 字典或模型返回。
+- `src/core/` (领域核心): 包含跨层共享的数据模型（如 `UserContext`）和状态机控制。
+
+## 3. 编码规范
+- **语言**: 所有代码注释、文档和与用户的对话必须使用**中文**。
+- **格式化**: 项目使用 `ruff` 作为 Linter 和 Formatter。所有的 Python 代码修改必须符合 `ruff` 规范（包括 Import 排序和最大 120 字符长度）。
+- **类型提示**: 强烈建议在复杂的函数定义中使用 Python Type Hints（如 `def get_user(user_id: str) -> dict | None:`）。
+- **异常处理**: 不要吞噬异常。使用 `try-except` 时，如果是预期的业务错误，返回特定的状态/提示；如果是系统错误，必须带上 `from e`（如 `raise Exception("...") from e`）。
+
+## 4. 自动化测试要求
+- 本项目使用 `pytest`。所有的核心逻辑变动，必须同步更新或添加 `tests/` 目录下的测试用例。
+- 保证测试的独立性，使用 `tests/conftest.py` 中提供的隔离夹具，不要污染真实数据库。
+- 在修改完代码后，必须在终端执行 `python -m pytest` 并确保全部绿灯通过。
+
+## 5. Git & PR 规范
+- 提交代码前，执行 `python -m ruff check --fix .` 以及 `python -m ruff format .`。
+- Commit message 必须遵循 Conventional Commits 规范，例如：
+  - `feat(services): 增加新的打卡业务逻辑`
+  - `fix(views): 修复页面重定向时的闪烁问题`
+  - `refactor(core): 重构上下文状态机`
+- 完成开发后，提供清晰的 Markdown 格式的 PR 总结描述。
+
+## 6. AI 思考步骤 (Step-by-Step)
+当你被要求完成一个新功能时，请遵循以下步骤，不要急于写代码：
+1. **分析**: 阅读相关的现有文件（如 `views` 和对应的 `services`、`repos`）。
+2. **计划**: 在对话中输出你的修改计划（需要改动哪些文件、增加什么接口）。
+3. **执行**: 逐个修改文件，保持模块化。
+4. **测试**: 运行 `pytest` 验证你的修改。
+5. **提交**: 使用规范的 git commit 提交代码。

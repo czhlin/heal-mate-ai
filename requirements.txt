@@ -2,3 +2,13 @@ streamlit
 openai
 python-dotenv
 streamlit-cookies-controller==0.0.4
+
+# Code Quality & Formatting (Dev)
+ruff
+pre-commit
+
+# Testing (Dev)
+pytest
+pytest-cov
+pytest-mock
+pytest-env
