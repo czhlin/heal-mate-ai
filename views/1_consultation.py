@@ -1,10 +1,9 @@
 import streamlit as st
-import time
 
-from config import DEEPSEEK_API_KEY, QUESTIONS, PLAN_VERSIONS, HARD_MODE_KEYWORDS
+from config import DEEPSEEK_API_KEY, HARD_MODE_KEYWORDS, PLAN_VERSIONS, QUESTIONS
 from core.consultation import build_question, ensure_chat_state
 from core.state import ensure_user_state
-from core.user_context import load_user_context, UserStatus
+from core.user_context import UserStatus, load_user_context
 from services.history_service import save_to_history
 from services.plan_service import generate_and_save_plan
 from services.profile_service import clear_user_profiles, save_user_profile
@@ -38,9 +37,7 @@ with st.sidebar:
         ctx = load_user_context(user_id)
         latest = ctx.profile or st.session_state.get("user_data") or {}
         st.session_state.user_data = latest
-        st.session_state.messages = [
-            {"role": "assistant", "content": build_question(0, latest, True)}
-        ]
+        st.session_state.messages = [{"role": "assistant", "content": build_question(0, latest, True)}]
         st.session_state.current_step = 0
         st.session_state.selected_plan_version = None
         st.session_state.plan_text = None
@@ -66,24 +63,24 @@ if st.session_state.current_step < len(QUESTIONS):
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
-            
+
         current_q = QUESTIONS[st.session_state.current_step]
         key = current_q["key"]
-        
+
         # 困难模式检测
         is_hard_mode = any(kw in user_input for kw in HARD_MODE_KEYWORDS)
         hard_mode_reply = ""
         if is_hard_mode:
             hard_mode_reply = "💚 我完全理解，改变习惯确实不容易。我们不需要一次做太多，累了就休息，没关系的。\n\n"
-        
+
         if st.session_state.editing and user_input == "跳过":
             reply_text = hard_mode_reply + "好的，保持不变。"
         else:
             st.session_state.user_data[key] = user_input
             reply_text = hard_mode_reply + current_q["reply"]
-        
+
         st.session_state.current_step += 1
-        
+
         if st.session_state.current_step < len(QUESTIONS):
             next_q_text = build_question(
                 st.session_state.current_step, st.session_state.user_data, st.session_state.editing
@@ -93,11 +90,11 @@ if st.session_state.current_step < len(QUESTIONS):
             st.session_state.editing = False
             save_user_profile(user_id, st.session_state.user_data)
             ai_msg = f"{reply_text}\n\n感谢你的分享！我现在为你生成个性化方案。你想要哪个版本？"
-            
+
         st.session_state.messages.append({"role": "assistant", "content": ai_msg})
         with st.chat_message("assistant"):
             st.markdown(ai_msg)
-            
+
         st.rerun()
 
 # 分层方案生成 UI
@@ -128,9 +125,11 @@ if is_profile_ready and not st.session_state.editing:
         with st.chat_message("assistant"):
             with st.spinner(f"🧠 正在生成 {version['label']} ..."):
                 try:
-                    latest_profile = (load_user_context(user_id).profile or st.session_state.user_data)
-                    plan, tasks = generate_and_save_plan(user_id, latest_profile, st.session_state.selected_plan_version)
-                    
+                    latest_profile = load_user_context(user_id).profile or st.session_state.user_data
+                    plan, tasks = generate_and_save_plan(
+                        user_id, latest_profile, st.session_state.selected_plan_version
+                    )
+
                     st.session_state.plan_text = plan
                     st.session_state.generating_plan = False
 

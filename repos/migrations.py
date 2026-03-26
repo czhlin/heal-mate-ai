@@ -1,3 +1,11 @@
+"""
+数据访问基础设施 (Data Access Infrastructure): 数据库迁移与版本控制
+
+采用内联的防错创建 (IF NOT EXISTS) 和轻量级的 ALTER 捕获模式来实现 SQLite 数据库的自动化向前迁移。
+这种设计避免了引入 Alembic 等重型迁移框架带来的复杂性，适合单体应用的快速迭代阶段。
+随着业务的复杂化，应将这些 SQL 脚本迁移至独立的 .sql 迁移文件并引入基于版本的迁移管理工具。
+"""
+
 import sqlite3
 from datetime import datetime
 
@@ -5,6 +13,11 @@ from config import DB_PATH
 
 
 def init_db():
+    """
+    初始化并同步数据库 Schema。
+    在应用启动 (app.py) 时强制执行，确保所有表结构和索引符合当前代码版本的要求。
+    同时内含了一些旧版数据到多租户 (user_id) 及指针状态机 (user_state) 的平滑升级逻辑。
+    """
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute(

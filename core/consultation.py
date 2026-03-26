@@ -1,12 +1,23 @@
+"""
+领域核心层 (Core Domain): 咨询流与对话状态控制
+
+此模块负责处理 AI 问诊阶段的对话流控 (Conversation Flow Control)。
+通过维护一个步进式状态机 (Step-by-Step State Machine)，
+将用户离散的对话输入转化为结构化的用户档案 (User Profile)。
+"""
+
 import streamlit as st
 
 from config import QUESTIONS
 from services.profile_service import load_latest_user_profile, load_user_profile_by_id
 from services.user_state_service import get_user_state
-from core.user_context import get_user_status, UserStatus
 
 
 def build_question(step, user_data, editing):
+    """
+    提示词构建器 (Prompt Builder)
+    动态生成下一步的提问内容。如果是编辑模式，则提供当前值的回显与保留机制。
+    """
     q = QUESTIONS[step]["question"]
     if editing:
         key = QUESTIONS[step]["key"]
@@ -17,6 +28,14 @@ def build_question(step, user_data, editing):
 
 
 def ensure_chat_state(user_id: str):
+    """
+    聊天会话恢复器 (Chat Session Restorer)
+    系统初始化或页面刷新时调用。
+    职责：
+    1. 探测底层是否有持久化的 Profile。
+    2. 若有，通过历史数据重建完整的聊天上下文（History Rehydration），将对话进度直接快进至完成态。
+    3. 若无，初始化对话流的零状态（Zero State）。
+    """
     if not user_id:
         return
 
@@ -31,8 +50,9 @@ def ensure_chat_state(user_id: str):
         latest = load_user_profile_by_id(current_profile_id)
     else:
         latest = load_latest_user_profile(user_id)
-        
+
     if latest:
+        # Rehydration: 将结构化档案反向渲染为对话流
         st.session_state.user_data = latest
         st.session_state.editing = False
         msgs = []
@@ -51,5 +71,6 @@ def ensure_chat_state(user_id: str):
         st.session_state.messages = msgs
         st.session_state.current_step = len(QUESTIONS)
     else:
+        # 初始化第一步交互
         st.session_state.editing = False
         st.session_state.messages = [{"role": "assistant", "content": build_question(0, {}, False)}]

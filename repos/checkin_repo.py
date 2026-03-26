@@ -20,7 +20,7 @@ def save_checkin(user_id: str, check_date: str, completed_tasks_list: list, feed
         else:
             conn.execute(
                 """
-                INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback, ai_reply) 
+                INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback, ai_reply)
                 VALUES (?, ?, ?, ?, ?)
                 """,
                 (user_id, check_date, tasks_json, feedback, ai_reply),
@@ -81,4 +81,3 @@ def get_last_checkin_date(user_id: str):
         return None
     finally:
         conn.close()
-

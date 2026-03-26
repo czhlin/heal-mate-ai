@@ -46,4 +46,3 @@ def clear_user_state(user_id: str):
         conn.commit()
     finally:
         conn.close()
-

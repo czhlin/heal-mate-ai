@@ -30,4 +30,3 @@ def set_current_plan_and_tasks(user_id: str, plan_id: int, tasks_id: int):
 
 def clear_user_state(user_id: str):
     user_state_repo.clear_user_state(user_id)
-

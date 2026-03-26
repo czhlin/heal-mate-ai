@@ -25,4 +25,3 @@ def save_to_history(input_data, output_text, user_id="default"):
             json.dump(history_list, f, ensure_ascii=False, indent=4)
     except IOError:
         pass
-

@@ -54,4 +54,3 @@ def delete_session(token: str):
         conn.commit()
     finally:
         conn.close()
-
