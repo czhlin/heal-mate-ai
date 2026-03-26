@@ -79,9 +79,20 @@
 
 - **类型提示 (Type Hints)**：核心逻辑和 Service 层的所有函数必须包含完整的类型提示（参数类型与返回值类型）。
 - **中文注释**：对于复杂的业务逻辑、状态机流转、数据库操作等，必须添加架构师视角的中文注释，解释**为什么**这样做，而不仅仅是做什么。
-- **模块化**：保持职责单一，避免在 `views/` 视图层写重度业务逻辑，应将其下沉到 `services/` 或 `core/` 层。
+- **模块化**：保持职责单一，避免在 `src/views/` 视图层写重度业务逻辑，应将其下沉到 `src/services/` 或 `src/core/` 层。
+- **项目结构**：所有源代码放置在 `src/` 目录下，测试代码在 `tests/` 目录下。导入模块时不要包含 `src.`（例如 `from services.auth_service import ...`），由 Python 环境变量配置决定搜索路径。
 
-## 4. 提交 Pull Request
+## 4. AI 协作与编码规范 (.cursorrules)
+
+如果你是使用 AI 辅助开发（如 Cursor, Trae, GitHub Copilot 等），我们已经配置了根目录下的 `.cursorrules` 文件。
+在通过 Prompt 要求 AI 写代码或重构时，它将自动遵守以下规则：
+1. **职责分离**：严格区分 `views` (UI) / `services` (业务逻辑) / `repos` (数据库访问) 层，不产生越级调用。
+2. **测试先行**：修改或增加 `core/`、`services/` 的逻辑后，AI 被要求必须自动同步更新 `tests/` 下的用例，并通过运行验证。
+3. **自我约束**：AI 提交代码前，必须确保符合 Ruff 的代码规范，不留下诸如未使用的导入、错乱的缩进等问题。
+
+建议在提问时使用具体、清晰的指令，例如：“帮我在 services 层新增一个计算 BMI 的方法，并添加对应的单元测试”。
+
+## 5. 提交 Pull Request
 
 1. 在提交 PR 前，请确保代码已经过本地运行测试，并且 Ruff 检查通过（`pre-commit run --all-files`）。
 2. PR 标题必须符合上述 Commit 规范（如 `feat: add user profile page`）。
