@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
+
 from repos import auth_repo, profile_repo, user_state_repo
 
 
@@ -7,7 +12,14 @@ def test_auth_repo_create_and_get():
     pwd_hash = "fake_hash_123"
 
     # 确保没有旧数据
-    auth_repo.delete_session(user_id)  # 也可以忽略，通过用例名隔离
+    from repos.connection import connect
+
+    conn = connect()
+    try:
+        conn.execute("DELETE FROM auth WHERE user_id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
     auth_repo.create_user(user_id, pwd_hash)
     retrieved_hash = auth_repo.get_password_hash(user_id)

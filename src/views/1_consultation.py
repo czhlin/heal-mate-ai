@@ -1,5 +1,4 @@
 import streamlit as st
-
 from config import DEEPSEEK_API_KEY, HARD_MODE_KEYWORDS, PLAN_VERSIONS, QUESTIONS
 from core.consultation import build_question, ensure_chat_state
 from core.state import ensure_user_state

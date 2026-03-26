@@ -1,8 +1,7 @@
 import json
 
-from openai import OpenAI
-
 from config import DEEPSEEK_API_KEY, PLAN_VERSIONS
+from openai import OpenAI
 
 # 配置 DeepSeek API 客户端
 client = OpenAI(

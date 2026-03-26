@@ -1,8 +1,12 @@
 import os
 import sqlite3
+import sys
 import tempfile
 
 import pytest
+
+# 为了确保 tests 目录下的模块能正确导入 src 里的包
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 from repos import migrations
 

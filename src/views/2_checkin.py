@@ -2,7 +2,6 @@ import time
 from datetime import datetime
 
 import streamlit as st
-
 from ai_service import generate_checkin_reply, generate_feedback
 from config import HARD_MODE_KEYWORDS
 from core.state import ensure_user_state
