@@ -4,7 +4,7 @@ from config import PLAN_VERSIONS
 from core.state import ensure_user_state
 from core.user_context import get_user_status, UserStatus
 from services.checkin_service import get_last_checkin_date
-from services.plan_service import load_latest_plan
+from services.plan_service import load_current_plan
 from services.profile_service import load_latest_user_profile, save_user_profile
 
 # 获取当前用户 ID
@@ -51,7 +51,7 @@ st.markdown("""
 st.markdown('<h1 class="main-title">HealMate AI 🩺</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">你的专属健康陪伴者，接纳一切不完美，慢慢来。</p>', unsafe_allow_html=True)
 
-latest_plan = load_latest_plan(user_id)
+latest_plan = load_current_plan(user_id)
 if latest_plan:
     version = PLAN_VERSIONS.get(latest_plan["version_key"]) or PLAN_VERSIONS["ideal"]
     with st.expander(f"📌 当前健康计划（{version['label']} · {latest_plan['created_at']}）", expanded=True):

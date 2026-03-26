@@ -1,6 +1,6 @@
 from ai_service import extract_daily_tasks, generate_plan
 from repos import plan_repo, tasks_repo
-from services.user_state_service import set_current_plan_and_tasks
+from services.user_state_service import get_user_state, set_current_plan_and_tasks
 
 
 def generate_and_save_plan(user_id: str, user_data: dict, version_key: str):
@@ -19,3 +19,13 @@ def load_latest_plan(user_id: str):
 
 def load_plan_by_id(plan_id: int):
     return plan_repo.load_plan_by_id(plan_id)
+
+
+def load_current_plan(user_id: str):
+    s = get_user_state(user_id) or {}
+    plan_id = s.get("current_plan_id")
+    if plan_id:
+        plan = plan_repo.load_plan_by_id(plan_id)
+        if plan:
+            return plan
+    return plan_repo.load_latest_plan(user_id)

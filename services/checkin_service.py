@@ -1,5 +1,5 @@
 from repos import checkin_repo, tasks_repo
-from repos import user_state_repo
+from services.user_state_service import get_user_state
 
 
 def load_latest_daily_tasks(user_id: str):
@@ -7,7 +7,7 @@ def load_latest_daily_tasks(user_id: str):
 
 
 def load_current_daily_tasks(user_id: str):
-    s = user_state_repo.get_user_state(user_id) or {}
+    s = get_user_state(user_id) or {}
     tasks_id = s.get("current_tasks_id")
     if tasks_id:
         return tasks_repo.load_daily_tasks_by_id(tasks_id)

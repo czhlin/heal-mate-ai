@@ -8,7 +8,7 @@ from ai_service import generate_feedback, generate_checkin_reply
 from core.state import ensure_user_state
 from core.user_context import get_user_status, UserStatus
 from services.checkin_service import get_all_checkins, load_checkin, load_current_daily_tasks, save_checkin
-from services.plan_service import load_latest_plan
+from services.plan_service import load_current_plan
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
@@ -74,7 +74,7 @@ else:
                 is_hard_mode = True
             
             # 如果当前已经是 minimum，就不需要再提示降级了
-            current_plan = load_latest_plan(user_id)
+            current_plan = load_current_plan(user_id)
             is_already_minimum = current_plan and current_plan.get("version_key") == "minimum"
             
             if is_hard_mode and not is_already_minimum:
