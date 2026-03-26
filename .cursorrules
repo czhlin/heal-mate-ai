@@ -5,8 +5,8 @@
 
 ## 2. 核心架构约束 (Domain Driven Design)
 在编写或修改代码时，必须严格遵守当前的目录职责划分，**绝对禁止**跨层调用或混淆职责：
-- `src/views/` (UI层): 只能包含 Streamlit 的渲染逻辑（`st.write`, `st.button` 等）。禁止在这里直接写 SQL、文件读写或直接调用外部 API。
-- `src/services/` (服务层): 负责核心业务逻辑。在这里组装各个 Repo，调用外部 AI 服务，并暴露干净的接口给 views 层。
+- `src/pages/` (UI层): 只能包含 Streamlit 的渲染逻辑（`st.write`, `st.button` 等）。禁止在这里直接写 SQL、文件读写或直接调用外部 API。
+- `src/services/` (服务层): 负责核心业务逻辑。在这里组装各个 Repo，调用外部 AI 服务，并暴露干净的接口给 pages 层。
 - `src/repos/` (数据访问层): 所有的 SQLite 操作必须封装在这里。禁止向外泄露 `sqlite3.Row` 或是游标对象，必须将其转换为标准的 Python 字典或模型返回。
 - `src/core/` (领域核心): 包含跨层共享的数据模型（如 `UserContext`）和状态机控制。
 
@@ -25,13 +25,13 @@
 - 提交代码前，执行 `python -m ruff check --fix .` 以及 `python -m ruff format .`。
 - Commit message 必须遵循 Conventional Commits 规范，例如：
   - `feat(services): 增加新的打卡业务逻辑`
-  - `fix(views): 修复页面重定向时的闪烁问题`
+  - `fix(pages): 修复页面重定向时的闪烁问题`
   - `refactor(core): 重构上下文状态机`
 - 完成开发后，提供清晰的 Markdown 格式的 PR 总结描述。
 
 ## 6. AI 思考步骤 (Step-by-Step)
 当你被要求完成一个新功能时，请遵循以下步骤，不要急于写代码：
-1. **分析**: 阅读相关的现有文件（如 `views` 和对应的 `services`、`repos`）。
+1. **分析**: 阅读相关的现有文件（如 `pages` 和对应的 `services`、`repos`）。
 2. **计划**: 在对话中输出你的修改计划（需要改动哪些文件、增加什么接口）。
 3. **执行**: 逐个修改文件，保持模块化。
 4. **测试**: 运行 `pytest` 验证你的修改。
