@@ -73,8 +73,10 @@ def test_checkin_service_save_and_load():
     # 获取所有打卡记录
     all_checkins = checkin_service.get_all_checkins(user_id)
     assert len(all_checkins) == 1
-    # sqlite3.Row 返回的可以像字典一样使用
-    assert all_checkins[0]["check_date"] == today
+
+    # 根据 repos/checkin_repo.py 中的 get_all_checkins，
+    # 它返回的结构是包含字典的列表，且日期字段的 key 为 "date" 而不是 "check_date"。
+    assert all_checkins[0]["date"] == today
 
     # 获取最后打卡日期
     last_date = checkin_service.get_last_checkin_date(user_id)
