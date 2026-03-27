@@ -84,6 +84,9 @@ def init_db():
                 check_date TEXT NOT NULL,
                 completed_tasks_json TEXT NOT NULL,
                 feedback TEXT,
+                ai_reply TEXT,
+                tasks_snapshot_json TEXT,
+                tasks_total_count INTEGER,
                 UNIQUE(user_id, check_date)
             )
             """
@@ -95,10 +98,25 @@ def init_db():
                 current_profile_id INTEGER,
                 current_plan_id INTEGER,
                 current_tasks_id INTEGER,
+                short_term_state TEXT,
+                short_term_note TEXT,
+                short_term_expires_at TEXT,
                 updated_at TEXT NOT NULL
             )
             """
         )
+        try:
+            conn.execute("ALTER TABLE user_state ADD COLUMN short_term_state TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE user_state ADD COLUMN short_term_note TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE user_state ADD COLUMN short_term_expires_at TEXT")
+        except sqlite3.OperationalError:
+            pass
         try:
             conn.execute("ALTER TABLE users ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'")
         except sqlite3.OperationalError:
@@ -117,6 +135,14 @@ def init_db():
             pass
         try:
             conn.execute("ALTER TABLE check_ins ADD COLUMN ai_reply TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE check_ins ADD COLUMN tasks_snapshot_json TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE check_ins ADD COLUMN tasks_total_count INTEGER")
         except sqlite3.OperationalError:
             pass
 
@@ -144,26 +170,46 @@ def init_db():
                         completed_tasks_json TEXT NOT NULL,
                         feedback TEXT,
                         ai_reply TEXT,
+                        tasks_snapshot_json TEXT,
+                        tasks_total_count INTEGER,
                         UNIQUE(user_id, check_date)
                     )
                     """
                 )
                 if "user_id" in cols:
-                    conn.execute(
-                        """
-                        INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback)
-                        SELECT user_id, check_date, completed_tasks_json, feedback
-                        FROM check_ins_old
-                        """
-                    )
+                    if "ai_reply" in cols:
+                        conn.execute(
+                            """
+                            INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback, ai_reply)
+                            SELECT user_id, check_date, completed_tasks_json, feedback, ai_reply
+                            FROM check_ins_old
+                            """
+                        )
+                    else:
+                        conn.execute(
+                            """
+                            INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback, ai_reply)
+                            SELECT user_id, check_date, completed_tasks_json, feedback, NULL
+                            FROM check_ins_old
+                            """
+                        )
                 else:
-                    conn.execute(
-                        """
-                        INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback)
-                        SELECT 'default', check_date, completed_tasks_json, feedback
-                        FROM check_ins_old
-                        """
-                    )
+                    if "ai_reply" in cols:
+                        conn.execute(
+                            """
+                            INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback, ai_reply)
+                            SELECT 'default', check_date, completed_tasks_json, feedback, ai_reply
+                            FROM check_ins_old
+                            """
+                        )
+                    else:
+                        conn.execute(
+                            """
+                            INSERT INTO check_ins (user_id, check_date, completed_tasks_json, feedback, ai_reply)
+                            SELECT 'default', check_date, completed_tasks_json, feedback, NULL
+                            FROM check_ins_old
+                            """
+                        )
                 conn.execute("DROP TABLE check_ins_old")
         except sqlite3.OperationalError:
             pass

@@ -18,8 +18,24 @@ def load_checkin(user_id: str, check_date: str):
     return checkin_repo.load_checkin(user_id, check_date)
 
 
-def save_checkin(user_id: str, check_date: str, completed_tasks_list: list, feedback: str = "", ai_reply: str = ""):
-    checkin_repo.save_checkin(user_id, check_date, completed_tasks_list, feedback=feedback, ai_reply=ai_reply)
+def save_checkin(
+    user_id: str,
+    check_date: str,
+    completed_tasks_list: list,
+    feedback: str = "",
+    ai_reply: str = "",
+    tasks_snapshot_list=None,
+    tasks_total_count=None,
+):
+    checkin_repo.save_checkin(
+        user_id,
+        check_date,
+        completed_tasks_list,
+        feedback=feedback,
+        ai_reply=ai_reply,
+        tasks_snapshot_list=tasks_snapshot_list,
+        tasks_total_count=tasks_total_count,
+    )
 
 
 def get_all_checkins(user_id: str):

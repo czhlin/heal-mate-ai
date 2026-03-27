@@ -68,6 +68,7 @@ apply_theme(st.session_state.get("theme") or "light")
 home_page = st.Page("pages/home.py", title="首页", icon="🏠", default=True)
 consultation_page = st.Page("pages/1_consultation.py", title="AI 咨询", icon="💬")
 checkin_page = st.Page("pages/2_checkin.py", title="今日打卡", icon="✅")
+dashboard_page = st.Page("pages/3_dashboard.py", title="成长看板", icon="📊")
 
 # -----------------------------------------------------------------------------
 # 6. 鉴权网关与会话恢复 (Authentication & Session Recovery)
@@ -146,6 +147,6 @@ with st.sidebar:
     st.markdown("---")
 
 # 挂载路由，交由 Streamlit 内置导航器接管后续的生命周期
-pg = st.navigation({"导航": [home_page, consultation_page, checkin_page]})
+pg = st.navigation({"导航": [home_page, consultation_page, checkin_page, dashboard_page]})
 
 pg.run()

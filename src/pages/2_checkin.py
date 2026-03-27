@@ -3,11 +3,14 @@ from datetime import datetime
 
 import streamlit as st
 
-from ai_service import generate_checkin_reply, generate_feedback
+from ai_service import extract_daily_tasks, generate_checkin_reply, generate_feedback
 from config import HARD_MODE_KEYWORDS
 from core.state import ensure_user_state
 from core.user_context import UserStatus, load_user_context
+from repos import tasks_repo
 from services.checkin_service import get_all_checkins, load_checkin, load_current_daily_tasks, save_checkin
+from services.short_term_state_service import detect_short_term_state
+from services.user_state_service import get_active_short_term_state, set_current_tasks, set_short_term_state
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
@@ -34,6 +37,43 @@ if not latest_tasks:
     if st.button("去生成方案"):
         st.switch_page("pages/1_consultation.py")
     st.stop()
+
+with st.expander("✏️ 编辑我的打卡任务", expanded=False):
+    tasks_text = st.text_area("每行一个任务", value="\n".join(latest_tasks), height=160)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("保存任务", use_container_width=True):
+            new_tasks = [line.strip() for line in tasks_text.splitlines() if line.strip()]
+            new_tasks = list(dict.fromkeys(new_tasks))
+            if not new_tasks:
+                st.error("任务不能为空。")
+            else:
+                tasks_id = tasks_repo.save_daily_tasks(user_id, new_tasks)
+                set_current_tasks(user_id, tasks_id)
+                st.success("已更新打卡任务。")
+                time.sleep(0.5)
+                st.rerun()
+    with c2:
+        if st.button("从方案重新生成", use_container_width=True):
+            plan_text = (ctx.plan or {}).get("plan_text") if ctx.plan else None
+            if not plan_text:
+                st.error("当前还没有生成方案，无法重新生成任务。")
+            else:
+                with st.spinner("正在从当前方案提取任务..."):
+                    new_tasks = extract_daily_tasks(plan_text)
+                    tasks_id = tasks_repo.save_daily_tasks(user_id, new_tasks)
+                    set_current_tasks(user_id, tasks_id)
+                st.success("已重新生成任务。")
+                time.sleep(0.5)
+                st.rerun()
+
+active_state = get_active_short_term_state(user_id)
+if active_state and not (ctx.plan and ctx.plan.get("version_key") == "minimum"):
+    st.info(f"我注意到你最近可能处于特殊状态：{active_state.get('note')}")
+    if st.button("切换到「最小行动方案」", use_container_width=True):
+        st.session_state.selected_plan_version = "minimum"
+        st.session_state.generating_plan = True
+        st.switch_page("pages/1_consultation.py")
 
 completed_tasks, fb, ai_reply = load_checkin(user_id, today_str)
 
@@ -78,7 +118,12 @@ else:
 
             if is_hard_mode and not is_already_minimum:
                 st.session_state.trigger_hard_mode = True
+                st.session_state.hard_mode_daily_feeling = daily_feeling or ""
                 st.rerun()
+
+            detected = detect_short_term_state(daily_feeling)
+            if detected:
+                set_short_term_state(user_id, detected["state"], detected["note"], detected["expires_at"])
 
             with st.spinner("正在生成专属反馈..."):
                 ai_reply = ""
@@ -93,7 +138,15 @@ else:
                 feedback = generate_feedback(len(checked_items), len(latest_tasks))
 
                 # 保存打卡记录（包含用户感受、生成的系统评价、以及 AI 回应）
-                save_checkin(user_id, today_str, checked_items, feedback=daily_feeling, ai_reply=ai_reply or feedback)
+                save_checkin(
+                    user_id,
+                    today_str,
+                    checked_items,
+                    feedback=daily_feeling,
+                    ai_reply=ai_reply or feedback,
+                    tasks_snapshot_list=latest_tasks,
+                    tasks_total_count=len(latest_tasks),
+                )
 
                 if ai_reply:
                     st.success("打卡成功！")
@@ -112,9 +165,18 @@ if st.session_state.get("trigger_hard_mode"):
     with c1:
         if st.button("不用了，我可以坚持", use_container_width=True):
             st.session_state.trigger_hard_mode = False
+            daily_feeling = st.session_state.get("hard_mode_daily_feeling") or ""
             with st.spinner("正在生成专属反馈..."):
                 feedback = generate_feedback(0, len(latest_tasks))
-                save_checkin(user_id, today_str, [], feedback=daily_feeling, ai_reply=feedback)
+                save_checkin(
+                    user_id,
+                    today_str,
+                    [],
+                    feedback=daily_feeling,
+                    ai_reply=feedback,
+                    tasks_snapshot_list=latest_tasks,
+                    tasks_total_count=len(latest_tasks),
+                )
             st.rerun()
     with c2:
         if st.button("好，帮我换成「最小行动方案」", use_container_width=True):

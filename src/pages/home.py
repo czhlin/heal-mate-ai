@@ -7,12 +7,16 @@ from core.state import ensure_user_state
 from core.user_context import UserStatus, load_user_context
 from services.checkin_service import get_last_checkin_date
 from services.profile_service import save_user_profile
+from services.user_state_service import get_active_short_term_state
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
 
 ensure_user_state(user_id)
 ctx = load_user_context(user_id)
+active_state = get_active_short_term_state(user_id)
+if active_state:
+    st.info(f"最近状态：{active_state.get('note')}")
 
 # 自定义 CSS 优化首页卡片和布局
 st.markdown(
@@ -144,7 +148,7 @@ if last_checkin and consulted:
 st.markdown("---")
 st.write("### 请选择你要进行的操作：")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("💬 去进行 AI 咨询\n\n(更新信息 / 生成方案)", use_container_width=True):
@@ -153,6 +157,10 @@ with col1:
 with col2:
     if st.button("✅ 去完成今日打卡\n\n(记录进度 / 获取鼓励)", use_container_width=True):
         st.switch_page("pages/2_checkin.py")
+
+with col3:
+    if st.button("📊 查看成长看板\n\n(统计 / 记录)", use_container_width=True):
+        st.switch_page("pages/3_dashboard.py")
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.caption("提示：初次使用请先点击「AI 咨询」生成专属你的健康方案。")
