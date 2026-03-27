@@ -38,6 +38,9 @@ def test_e2e_smoke_login_and_navigation(tmp_path):
     env = os.environ.copy()
     env["DEEPSEEK_API_KEY"] = env.get("DEEPSEEK_API_KEY") or "e2e_dummy_key"
     env["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
+    env["TESTING"] = "True"
+    env["RUN_E2E"] = "1"
+    env["HEALMATE_DATA_DIR"] = str(tmp_path)
 
     proc = subprocess.Popen(
         [
@@ -60,20 +63,24 @@ def test_e2e_smoke_login_and_navigation(tmp_path):
         _wait_http_ok(url, timeout_s=45)
 
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            headful = os.getenv("PW_HEADFUL") == "1"
+            slow_mo = int(os.getenv("PW_SLOWMO") or "0")
+            browser = p.chromium.launch(headless=not headful, slow_mo=slow_mo)
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded")
 
-            page.get_by_label("专属昵称 / 账号").fill("e2e_user")
-            page.get_by_label("密码（新用户将自动注册）").fill("e2e_password")
-            page.get_by_role("button", name="登录 / 注册").click()
+            if page.get_by_text("当前用户").count() == 0:
+                page.get_by_role("button", name="登录 / 注册").wait_for(timeout=30000)
+                page.get_by_label("专属昵称 / 账号").fill(f"e2e_user_{int(time.time())}")
+                page.get_by_label("密码（新用户将自动注册）").fill("e2e_password")
+                page.get_by_role("button", name="登录 / 注册").click()
 
-            page.get_by_text("当前用户").wait_for(timeout=30000)
+            page.get_by_text("当前用户").wait_for(timeout=60000)
 
-            page.get_by_text("今日打卡").click()
+            page.get_by_role("link", name="今日打卡").click()
             page.get_by_text("✅ 今日打卡").wait_for(timeout=30000)
 
-            page.get_by_text("成长看板").click()
+            page.get_by_role("link", name="成长看板").click()
             page.get_by_text("📊 成长看板").wait_for(timeout=30000)
 
             browser.close()

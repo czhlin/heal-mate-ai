@@ -23,7 +23,7 @@ def _wait_http_ok(url: str, timeout_s: int = 30) -> None:
 
 
 @pytest.mark.e2e
-def test_e2e_full_flow_consultation_plan_checkin_dashboard():
+def test_e2e_full_flow_consultation_plan_checkin_dashboard(tmp_path):
     if os.getenv("RUN_E2E") != "1":
         pytest.skip("Set RUN_E2E=1 to run e2e tests")
 
@@ -41,6 +41,7 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard():
     env["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
     env["TESTING"] = "True"
     env["RUN_E2E"] = "1"
+    env["HEALMATE_DATA_DIR"] = str(tmp_path)
 
     proc = subprocess.Popen(
         [
@@ -63,14 +64,18 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard():
         _wait_http_ok(url, timeout_s=45)
 
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            headful = os.getenv("PW_HEADFUL") == "1"
+            slow_mo = int(os.getenv("PW_SLOWMO") or "0")
+            browser = p.chromium.launch(headless=not headful, slow_mo=slow_mo)
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded")
 
-            page.get_by_label("专属昵称 / 账号").fill("e2e_user_full")
-            page.get_by_label("密码（新用户将自动注册）").fill("e2e_password")
-            page.get_by_role("button", name="登录 / 注册").click()
-            page.get_by_text("当前用户").wait_for(timeout=30000)
+            if page.get_by_text("当前用户").count() == 0:
+                page.get_by_role("button", name="登录 / 注册").wait_for(timeout=30000)
+                page.get_by_label("专属昵称 / 账号").fill(f"e2e_user_full_{int(time.time())}")
+                page.get_by_label("密码（新用户将自动注册）").fill("e2e_password")
+                page.get_by_role("button", name="登录 / 注册").click()
+            page.get_by_text("当前用户").wait_for(timeout=60000)
 
             page.get_by_text("AI 咨询").click()
             page.get_by_text("💬 AI健康管家").wait_for(timeout=30000)
@@ -122,8 +127,7 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard():
             page.get_by_text("编辑我的打卡任务").click()
             page.get_by_label("每行一个任务").fill("喝水 2000ml\n晚上 23:30 睡觉\n散步 20分钟\n拉伸 5分钟")
             page.get_by_text("保存任务").click()
-            page.get_by_text("已更新打卡任务").wait_for(timeout=30000)
-
+            # 保存任务后页面会 rerun 刷新，等待关键元素再次出现以确认刷新完成
             page.get_by_text("拉伸 5分钟").first.wait_for(timeout=30000)
             page.get_by_text("拉伸 5分钟").first.click()
             page.get_by_label("今天感觉怎么样？（选填，比如：太累了不想动）").fill("今天还行")
