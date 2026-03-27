@@ -154,12 +154,23 @@ st.components.v1.html(
       const req = document.getElementById("hm_req");
       const test = document.getElementById("hm_test");
       req.onclick = async () => {{
-        if (!("Notification" in window)) return;
-        await Notification.requestPermission();
+        if (!("Notification" in window)) {{
+          alert("你的浏览器不支持系统通知哦");
+          return;
+        }}
+        const perm = await Notification.requestPermission();
+        if (perm === "granted") {{
+          alert("通知权限已开启！");
+        }} else {{
+          alert("通知权限被拒绝，请在浏览器地址栏左侧设置中开启。");
+        }}
       }};
       test.onclick = () => {{
         if (!("Notification" in window)) return;
-        if (Notification.permission !== "granted") return;
+        if (Notification.permission !== "granted") {{
+          alert("请先点击『启用通知权限』并允许！");
+          return;
+        }}
         new Notification("HealMate 提醒", {{ body: "我在这里～今天感觉怎么样？来打个卡吧。" }});
       }};
 
