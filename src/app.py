@@ -127,7 +127,10 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
 show_sidebar()
 
 with st.sidebar:
-    st.markdown(f"👤 当前用户: **{st.session_state.user_id}**")
+    st.markdown(
+        f"<div data-testid='current-user-info'>👤 当前用户: **{st.session_state.user_id}**</div>",
+        unsafe_allow_html=True,
+    )
     theme = st.session_state.get("theme") or "light"
     theme_button = "🌙 切换深色" if theme == "light" else "☀️ 切换浅色"
     if st.button(theme_button, use_container_width=True):

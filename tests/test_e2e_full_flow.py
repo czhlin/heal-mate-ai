@@ -70,12 +70,12 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard(tmp_path):
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded")
 
-            if page.get_by_text("当前用户").count() == 0:
+            if page.get_by_test_id("current-user-info").count() == 0:
                 page.get_by_role("button", name="登录 / 注册").wait_for(timeout=30000)
                 page.get_by_label("专属昵称 / 账号").fill(f"e2e_user_full_{int(time.time())}")
                 page.get_by_label("密码（新用户将自动注册）").fill("e2e_password")
                 page.get_by_role("button", name="登录 / 注册").click()
-            page.get_by_text("当前用户").wait_for(timeout=60000)
+            page.get_by_test_id("current-user-info").wait_for(timeout=60000)
 
             page.get_by_text("AI 咨询").click()
             page.get_by_text("💬 AI健康管家").wait_for(timeout=30000)

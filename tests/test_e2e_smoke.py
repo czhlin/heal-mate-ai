@@ -69,13 +69,13 @@ def test_e2e_smoke_login_and_navigation(tmp_path):
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded")
 
-            if page.get_by_text("当前用户").count() == 0:
+            if page.get_by_test_id("current-user-info").count() == 0:
                 page.get_by_role("button", name="登录 / 注册").wait_for(timeout=30000)
                 page.get_by_label("专属昵称 / 账号").fill(f"e2e_user_{int(time.time())}")
                 page.get_by_label("密码（新用户将自动注册）").fill("e2e_password")
                 page.get_by_role("button", name="登录 / 注册").click()
 
-            page.get_by_text("当前用户").wait_for(timeout=60000)
+            page.get_by_test_id("current-user-info").wait_for(timeout=60000)
 
             page.get_by_role("link", name="今日打卡").click()
             page.get_by_text("✅ 今日打卡").wait_for(timeout=30000)
