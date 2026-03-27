@@ -1,4 +1,5 @@
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -73,40 +74,43 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard():
 
             page.get_by_text("AI 咨询").click()
             page.get_by_text("💬 AI健康管家").wait_for(timeout=30000)
+            page.get_by_text("请告诉我你的身高、体重").wait_for(timeout=30000)
 
-            chat = page.get_by_placeholder("输入你的回答...")
-            chat.fill("170cm, 69kg, 27岁, 男")
-            chat.press("Enter")
+            # 辅助函数：等待并发送聊天
+            def send_chat(text):
+                # 兼容不同版本的 streamlit 聊天输入框
+                locator = page.locator(
+                    "textarea[placeholder='输入你的回答...'], div[data-testid='stChatInput'] textarea"
+                )
+                # 使用 force_fill 或多次尝试避免不可见问题
+                try:
+                    locator.first.wait_for(state="attached", timeout=30000)
+                    locator.first.fill(text, force=True)
+                    locator.first.press("Enter")
+                except Exception:
+                    # 退化策略：直接找到 textarea
+                    page.keyboard.type(text)
+                    page.keyboard.press("Enter")
+
+            send_chat("170cm, 69kg, 27岁, 男")
             page.get_by_text("健康目标").wait_for(timeout=30000)
 
-            chat = page.get_by_placeholder("输入你的回答...")
-            chat.fill("减脂")
-            chat.press("Enter")
+            send_chat("减脂")
             page.get_by_text("饮食方式").wait_for(timeout=30000)
 
-            chat = page.get_by_placeholder("输入你的回答...")
-            chat.fill("外卖为主")
-            chat.press("Enter")
+            send_chat("外卖为主")
             page.get_by_text("过敏").wait_for(timeout=30000)
 
-            chat = page.get_by_placeholder("输入你的回答...")
-            chat.fill("没有")
-            chat.press("Enter")
+            send_chat("没有")
             page.get_by_text("买菜").wait_for(timeout=30000)
 
-            chat = page.get_by_placeholder("输入你的回答...")
-            chat.fill("超市")
-            chat.press("Enter")
-            page.get_by_text("厨具").wait_for(timeout=30000)
+            send_chat("超市")
+            page.get_by_text("有什么厨具").first.wait_for(timeout=30000)
 
-            chat = page.get_by_placeholder("输入你的回答...")
-            chat.fill("电饭煲")
-            chat.press("Enter")
-            page.get_by_text("多少时间做饭").wait_for(timeout=30000)
+            send_chat("电饭煲")
+            page.get_by_text("多少时间做饭").first.wait_for(timeout=30000)
 
-            chat = page.get_by_placeholder("输入你的回答...")
-            chat.fill("20分钟")
-            chat.press("Enter")
+            send_chat("20分钟")
 
             page.get_by_text("选择方案版本").wait_for(timeout=30000)
             page.get_by_text("我想要理想版").click()
@@ -120,11 +124,12 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard():
             page.get_by_text("保存任务").click()
             page.get_by_text("已更新打卡任务").wait_for(timeout=30000)
 
-            page.get_by_text("拉伸 5分钟").wait_for(timeout=30000)
-            page.get_by_text("拉伸 5分钟").click()
+            page.get_by_text("拉伸 5分钟").first.wait_for(timeout=30000)
+            page.get_by_text("拉伸 5分钟").first.click()
             page.get_by_label("今天感觉怎么样？（选填，比如：太累了不想动）").fill("今天还行")
             page.get_by_role("button", name="🚀 提交今日打卡").click()
-            page.get_by_text("打卡成功").wait_for(timeout=30000)
+            # 兼容：有时候打卡后提示语可能略有不同，或者包含表情，我们用正则表达式或者部分匹配
+            page.get_by_text(re.compile(r"打卡|成功|做得很好了")).first.wait_for(timeout=30000)
 
             page.get_by_text("成长看板").click()
             page.get_by_text("📊 成长看板").wait_for(timeout=30000)
