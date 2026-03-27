@@ -44,6 +44,7 @@ jobs:
         PYTHONPATH: ${{ github.workspace }}/src
         RUN_E2E: "1"
         DEEPSEEK_API_KEY: "e2e_dummy_key"
+        TESTING: "True"
       run: |
         pytest -m e2e
 

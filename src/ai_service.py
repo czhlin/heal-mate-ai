@@ -1,4 +1,6 @@
 import json
+import os
+import re
 
 from openai import OpenAI
 
@@ -11,7 +13,23 @@ client = OpenAI(
 )
 
 
+def _is_test_mode() -> bool:
+    return os.getenv("TESTING") == "True" or os.getenv("RUN_E2E") == "1"
+
+
 def generate_plan(user_data, version_key):
+    if _is_test_mode():
+        version_req = PLAN_VERSIONS.get(version_key, PLAN_VERSIONS["ideal"])["requirements"]
+        basic_info = user_data.get("basic_info", "未提供")
+        goal = user_data.get("goal", "未提供")
+        diet = user_data.get("diet", "未提供")
+        return (
+            f"【饮食】根据你的饮食方式（{diet}）与目标（{goal}），优先保证蛋白质与蔬菜摄入。\n\n"
+            "【饮水】目标：每日 2000ml（250ml/杯 × 8）。建议：起床 1 杯、上午 2 杯、下午 3 杯、晚间 2 杯。\n\n"
+            "【睡眠】建议 23:30-00:30 入睡，7:30-8:30 起床。睡前 30 分钟减少刷屏。\n\n"
+            "【运动】每周 3 次 20 分钟快走或徒手训练，按当日状态灵活调整。\n\n"
+            f"（测试模式）已根据：{basic_info} 生成。版本要求：{version_req}"
+        )
     version_req = PLAN_VERSIONS.get(version_key, PLAN_VERSIONS["ideal"])["requirements"]
 
     prompt = f"""你是一位充满同理心、专业的AI健康管家。根据以下用户的详细信息生成高度个性化的健康方案。
@@ -49,6 +67,8 @@ def generate_plan(user_data, version_key):
 
 
 def extract_daily_tasks(plan_text):
+    if _is_test_mode():
+        return ["喝水 2000ml", "晚上 23:30 睡觉", "散步 20分钟"]
     prompt = f"""请从以下健康方案中提取出 3-5 个适合每天打卡的具体任务。
 要求：
 1. 任务必须非常具体且可操作（例如：“喝水 2000ml”、“晚上 11:30 睡觉”、“散步 20分钟”）。
@@ -82,6 +102,10 @@ def extract_daily_tasks(plan_text):
 
 
 def generate_feedback(completed_count, total_count):
+    if _is_test_mode():
+        if total_count == 0:
+            return "今天也很棒，好好休息！"
+        return f"（测试模式）已完成 {completed_count}/{total_count} 项，做得很好。"
     if total_count == 0:
         return "今天也很棒，好好休息！"
     ratio = completed_count / total_count
@@ -111,6 +135,9 @@ def generate_feedback(completed_count, total_count):
 
 
 def generate_checkin_reply(feedback: str, completed_tasks: list, total_tasks_count: int) -> str:
+    if _is_test_mode():
+        completed = len(completed_tasks)
+        return f"（测试模式）收到你的感受：{feedback}。今天完成 {completed}/{total_tasks_count}，已经很棒了。"
     """
     根据用户的打卡反馈生成温暖的 AI 回应
     """
@@ -152,6 +179,47 @@ def normalize_consultation_answer(
     is_hard_mode: bool = False,
     existing_value=None,
 ) -> dict:
+    if _is_test_mode():
+        raw = (user_input or "").strip()
+        existing = (existing_value or "").strip()
+        negative = raw in {"不知道", "不清楚", "不确定", "随便", "不想说"}
+        if negative and existing:
+            return {"value": existing, "sufficient": True, "assistant_reply": "好的，保持不变。", "follow_up": ""}
+
+        if question_key == "basic_info":
+            h = re.search(r"(\d+(?:\.\d+)?)\s*(?:cm|厘米)", raw, re.IGNORECASE)
+            w = re.search(r"(\d+(?:\.\d+)?)\s*(?:kg|公斤)", raw, re.IGNORECASE)
+            age = re.search(r"(\d{1,3})\s*岁", raw)
+            sex = "男" if ("男" in raw and "女" not in raw) else ("女" if "女" in raw else "")
+            if h and w:
+                parts = [f"{h.group(1)}cm", f"{w.group(1)}kg"]
+                if age:
+                    parts.append(f"{age.group(1)}岁")
+                if sex:
+                    parts.append(sex)
+                return {
+                    "value": ", ".join(parts),
+                    "sufficient": True,
+                    "assistant_reply": "收到，已记录你的基本信息。",
+                    "follow_up": "",
+                }
+            return {
+                "value": "",
+                "sufficient": False,
+                "assistant_reply": "没关系，我们慢慢来。为了生成更合适的方案，我需要你的身高和体重。",
+                "follow_up": "可以按这个格式告诉我：170cm, 65kg",
+            }
+
+        if negative or not raw:
+            return {
+                "value": "",
+                "sufficient": False,
+                "assistant_reply": "我理解你现在不太想回答。为了把方案做得更贴合你，我还需要这一项信息。",
+                "follow_up": question_text.replace("？", "").replace("?", "").strip(),
+            }
+
+        return {"value": raw, "sufficient": True, "assistant_reply": "收到，已记录。", "follow_up": ""}
+
     mode_hint = "用户处于困难/疲惫状态，请更温柔、降低压力。" if is_hard_mode else "正常状态。"
     prompt = f"""
 你是一位温柔、专业的健康信息采集助手。你的任务是提取用户的回答，判断是否满足当前问题的要求。你可以和用户唠嗑共情，但【绝对不要擅自提出新问题】。
