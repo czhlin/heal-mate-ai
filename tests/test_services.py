@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../s
 
 from datetime import datetime, timedelta
 
-from repos import auth_repo, checkin_repo
+from repos import auth_repo
 from services import auth_service, checkin_service
 
 
@@ -63,17 +63,18 @@ def test_checkin_service_save_and_load():
     user_id = "checkin_user"
     today = datetime.now().date().strftime("%Y-%m-%d")
 
-    # 清理可能存在的旧数据
-    checkin_repo.conn = checkin_repo.connect()
-    try:
-        checkin_repo.conn.execute("DELETE FROM check_ins WHERE user_id = ?", (user_id,))
-        checkin_repo.conn.commit()
-    finally:
-        checkin_repo.conn.close()
-
     # 模拟打卡
     tasks = ["喝水", "睡觉"]
-    checkin_service.save_checkin(user_id, today, tasks, "很好", "AI的回复")
+    tasks_snapshot = ["喝水 2000ml", "晚上 11:30 睡觉", "散步 20分钟"]
+    checkin_service.save_checkin(
+        user_id,
+        today,
+        tasks,
+        "很好",
+        "AI的回复",
+        tasks_snapshot_list=tasks_snapshot,
+        tasks_total_count=len(tasks_snapshot),
+    )
 
     # 获取所有打卡记录
     all_checkins = checkin_service.get_all_checkins(user_id)
@@ -82,6 +83,8 @@ def test_checkin_service_save_and_load():
     # 根据 repos/checkin_repo.py 中的 get_all_checkins，
     # 它返回的结构是包含字典的列表，且日期字段的 key 为 "date" 而不是 "check_date"。
     assert all_checkins[0]["date"] == today
+    assert all_checkins[0]["tasks_snapshot"] == tasks_snapshot
+    assert all_checkins[0]["tasks_total_count"] == len(tasks_snapshot)
 
     # 获取最后打卡日期
     last_date = checkin_service.get_last_checkin_date(user_id)

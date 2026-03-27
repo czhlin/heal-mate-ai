@@ -82,3 +82,19 @@ def test_user_state_repo_upsert():
     assert state["current_profile_id"] == 10
     assert state["current_plan_id"] == 20
     assert state["current_tasks_id"] == 30
+
+
+def test_user_state_repo_short_term_state_fields():
+    user_id = "state_user_short_term"
+    user_state_repo.clear_user_state(user_id)
+
+    user_state_repo.upsert_user_state(
+        user_id,
+        short_term_state="sick",
+        short_term_note="感冒了有点难受",
+        short_term_expires_at="2099-01-01 00:00:00",
+    )
+    state = user_state_repo.get_user_state(user_id)
+    assert state["short_term_state"] == "sick"
+    assert state["short_term_note"] == "感冒了有点难受"
+    assert state["short_term_expires_at"] == "2099-01-01 00:00:00"
