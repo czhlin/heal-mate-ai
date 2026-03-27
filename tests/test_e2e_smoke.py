@@ -75,7 +75,7 @@ def test_e2e_smoke_login_and_navigation(tmp_path):
                 page.get_by_label("密码（新用户将自动注册）").fill("e2e_password")
                 page.get_by_role("button", name="登录 / 注册").click()
 
-            page.get_by_test_id("current-user-info").wait_for(timeout=60000)
+            page.get_by_test_id("current-user-info").wait_for(state="attached", timeout=60000)
 
             page.get_by_role("link", name="今日打卡").click()
             page.get_by_test_id("checkin-page").wait_for(state="attached", timeout=30000)

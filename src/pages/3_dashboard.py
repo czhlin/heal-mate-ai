@@ -7,12 +7,13 @@ import streamlit as st
 from core.state import ensure_user_state
 from services.checkin_service import get_all_checkins
 from services.user_state_service import get_active_short_term_state
+from ui.test_ids import test_id
 
 user_id = st.session_state.user_id
 
 ensure_user_state(user_id)
 
-st.markdown("<div data-testid='dashboard-page'></div>", unsafe_allow_html=True)
+test_id("dashboard-page")
 st.title("📊 成长看板")
 st.markdown("---")
 
@@ -132,7 +133,7 @@ with c2:
     st.metric("近 7 天打卡", f"{last_7}/7")
 with c3:
     st.metric("连续打卡", f"{streak} 天")
-st.markdown("<div data-testid='dashboard-metrics'></div>", unsafe_allow_html=True)
+test_id("dashboard-metrics")
 
 st.markdown("---")
 st.subheader("🔔 浏览器提醒（实验）")

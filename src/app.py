@@ -17,6 +17,7 @@ import streamlit as st
 
 from repos.migrations import init_db
 from services.auth_service import create_session, delete_session, get_user_id_by_session, verify_or_create_user
+from ui.test_ids import test_id
 from ui.theme import apply_theme, hide_sidebar, hide_streamlit_ui, show_sidebar
 
 # -----------------------------------------------------------------------------
@@ -127,10 +128,8 @@ if "user_id" not in st.session_state or not st.session_state.user_id:
 show_sidebar()
 
 with st.sidebar:
-    st.markdown(
-        f"<div data-testid='current-user-info'>👤 当前用户: **{st.session_state.user_id}**</div>",
-        unsafe_allow_html=True,
-    )
+    test_id("current-user-info")
+    st.markdown(f"👤 当前用户: **{st.session_state.user_id}**")
     theme = st.session_state.get("theme") or "light"
     theme_button = "🌙 切换深色" if theme == "light" else "☀️ 切换浅色"
     if st.button(theme_button, use_container_width=True):

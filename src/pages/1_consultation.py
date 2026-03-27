@@ -8,6 +8,7 @@ from core.user_context import UserStatus, load_user_context
 from services.history_service import save_to_history
 from services.plan_service import generate_and_save_plan
 from services.profile_service import clear_user_profiles, save_user_profile
+from ui.test_ids import test_id
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
@@ -15,7 +16,7 @@ user_id = st.session_state.user_id
 ensure_user_state(user_id)
 ensure_chat_state(user_id)
 
-st.markdown("<div data-testid='consultation-page'></div>", unsafe_allow_html=True)
+test_id("consultation-page")
 st.title("💬 AI健康管家")
 st.markdown("---")
 
@@ -122,7 +123,7 @@ is_profile_ready = user_status in [UserStatus.PROFILE_READY, UserStatus.PLAN_REA
 
 if is_profile_ready and not st.session_state.editing:
     st.markdown("---")
-    st.markdown("<div data-testid='choose-plan-version'></div>", unsafe_allow_html=True)
+    test_id("choose-plan-version")
     st.subheader("选择方案版本")
     c1, c2, c3 = st.columns(3)
     clicked = None
@@ -162,5 +163,5 @@ if is_profile_ready and not st.session_state.editing:
                     st.session_state.generating_plan = False
                     st.error(f"抱歉，生成方案时遇到了问题：{str(e)}")
 
-    st.markdown("<div data-testid='current-plan-version'></div>", unsafe_allow_html=True)
+    test_id("current-plan-version")
     st.markdown("### 📝 当前方案")

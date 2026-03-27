@@ -11,6 +11,7 @@ from repos import tasks_repo
 from services.checkin_service import get_all_checkins, load_checkin, load_current_daily_tasks, save_checkin
 from services.short_term_state_service import detect_short_term_state
 from services.user_state_service import get_active_short_term_state, set_current_tasks, set_short_term_state
+from ui.test_ids import test_id
 
 # 获取当前用户 ID
 user_id = st.session_state.user_id
@@ -18,7 +19,7 @@ user_id = st.session_state.user_id
 ensure_user_state(user_id)
 ctx = load_user_context(user_id)
 
-st.markdown("<div data-testid='checkin-page'></div>", unsafe_allow_html=True)
+test_id("checkin-page")
 st.title("✅ 今日打卡")
 st.markdown("---")
 
@@ -83,7 +84,7 @@ if completed_tasks or fb or ai_reply:
         st.success(f"🎉 今日已打卡：{fb}")
     else:
         st.success("🎉 今日已打卡")
-    st.markdown("<div data-testid='checkin-success-mark'></div>", unsafe_allow_html=True)
+    test_id("checkin-success-mark")
     with st.expander("查看今日打卡详情", expanded=True):
         for t in latest_tasks:
             if t in completed_tasks:
