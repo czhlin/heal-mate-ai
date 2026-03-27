@@ -78,10 +78,10 @@ def test_e2e_smoke_login_and_navigation(tmp_path):
             page.get_by_test_id("current-user-info").wait_for(timeout=60000)
 
             page.get_by_role("link", name="今日打卡").click()
-            page.get_by_text("✅ 今日打卡").wait_for(timeout=30000)
+            page.get_by_test_id("checkin-page").wait_for(state="attached", timeout=30000)
 
             page.get_by_role("link", name="成长看板").click()
-            page.get_by_text("📊 成长看板").wait_for(timeout=30000)
+            page.get_by_test_id("dashboard-page").wait_for(state="attached", timeout=30000)
 
             browser.close()
     finally:

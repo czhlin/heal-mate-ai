@@ -18,6 +18,7 @@ user_id = st.session_state.user_id
 ensure_user_state(user_id)
 ctx = load_user_context(user_id)
 
+st.markdown("<div data-testid='checkin-page'></div>", unsafe_allow_html=True)
 st.title("✅ 今日打卡")
 st.markdown("---")
 
@@ -82,6 +83,7 @@ if completed_tasks or fb or ai_reply:
         st.success(f"🎉 今日已打卡：{fb}")
     else:
         st.success("🎉 今日已打卡")
+    st.markdown("<div data-testid='checkin-success-mark'></div>", unsafe_allow_html=True)
     with st.expander("查看今日打卡详情", expanded=True):
         for t in latest_tasks:
             if t in completed_tasks:
@@ -155,7 +157,8 @@ else:
                     st.success(feedback)
 
                 time.sleep(2.5)  # 给用户时间阅读 AI 回应
-                st.rerun()
+                # 去掉 st.rerun() 让 success 和标记能停留在页面上
+                # st.rerun()
 
 # 在表单外处理困难模式触发
 if st.session_state.get("trigger_hard_mode"):

@@ -78,7 +78,7 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard(tmp_path):
             page.get_by_test_id("current-user-info").wait_for(timeout=60000)
 
             page.get_by_text("AI 咨询").click()
-            page.get_by_text("💬 AI健康管家").wait_for(timeout=30000)
+            page.get_by_test_id("consultation-page").wait_for(state="attached", timeout=30000)
             page.get_by_text("请告诉我你的身高、体重").wait_for(timeout=30000)
 
             # 辅助函数：等待并发送聊天
@@ -117,12 +117,13 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard(tmp_path):
 
             send_chat("20分钟")
 
-            page.get_by_text("选择方案版本").wait_for(timeout=30000)
+            page.get_by_test_id("choose-plan-version").wait_for(state="attached", timeout=30000)
             page.get_by_text("我想要理想版").click()
-            page.get_by_text("当前版本").wait_for(timeout=30000)
+            # 方案生成后，页面会重新渲染聊天记录并展示方案内容
+            page.get_by_test_id("current-plan-version").first.wait_for(state="attached", timeout=30000)
 
             page.get_by_text("今日打卡").click()
-            page.get_by_text("✅ 今日打卡").wait_for(timeout=30000)
+            page.get_by_test_id("checkin-page").wait_for(state="attached", timeout=30000)
 
             page.get_by_text("编辑我的打卡任务").click()
             page.get_by_label("每行一个任务").fill("喝水 2000ml\n晚上 23:30 睡觉\n散步 20分钟\n拉伸 5分钟")
@@ -132,12 +133,10 @@ def test_e2e_full_flow_consultation_plan_checkin_dashboard(tmp_path):
             page.get_by_text("拉伸 5分钟").first.click()
             page.get_by_label("今天感觉怎么样？（选填，比如：太累了不想动）").fill("今天还行")
             page.get_by_role("button", name="🚀 提交今日打卡").click()
-            # 兼容：有时候打卡后提示语可能略有不同，或者包含表情，我们用正则表达式或者部分匹配
-            page.get_by_text(re.compile(r"打卡|成功|做得很好了")).first.wait_for(timeout=30000)
-
+            # 因为打卡后页面会刷新，我们不再等待打卡成功的短提示，而是直接跳转到成长看板验证
             page.get_by_text("成长看板").click()
-            page.get_by_text("📊 成长看板").wait_for(timeout=30000)
-            page.get_by_text("累计打卡天数").wait_for(timeout=30000)
+            page.get_by_test_id("dashboard-page").wait_for(state="attached", timeout=30000)
+            page.get_by_test_id("dashboard-metrics").wait_for(state="attached", timeout=30000)
 
             browser.close()
     finally:

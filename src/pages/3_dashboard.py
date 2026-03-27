@@ -12,6 +12,7 @@ user_id = st.session_state.user_id
 
 ensure_user_state(user_id)
 
+st.markdown("<div data-testid='dashboard-page'></div>", unsafe_allow_html=True)
 st.title("📊 成长看板")
 st.markdown("---")
 
@@ -131,6 +132,7 @@ with c2:
     st.metric("近 7 天打卡", f"{last_7}/7")
 with c3:
     st.metric("连续打卡", f"{streak} 天")
+st.markdown("<div data-testid='dashboard-metrics'></div>", unsafe_allow_html=True)
 
 st.markdown("---")
 st.subheader("🔔 浏览器提醒（实验）")

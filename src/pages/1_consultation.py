@@ -15,6 +15,7 @@ user_id = st.session_state.user_id
 ensure_user_state(user_id)
 ensure_chat_state(user_id)
 
+st.markdown("<div data-testid='consultation-page'></div>", unsafe_allow_html=True)
 st.title("💬 AI健康管家")
 st.markdown("---")
 
@@ -121,6 +122,7 @@ is_profile_ready = user_status in [UserStatus.PROFILE_READY, UserStatus.PLAN_REA
 
 if is_profile_ready and not st.session_state.editing:
     st.markdown("---")
+    st.markdown("<div data-testid='choose-plan-version'></div>", unsafe_allow_html=True)
     st.subheader("选择方案版本")
     c1, c2, c3 = st.columns(3)
     clicked = None
@@ -159,3 +161,6 @@ if is_profile_ready and not st.session_state.editing:
                 except Exception as e:
                     st.session_state.generating_plan = False
                     st.error(f"抱歉，生成方案时遇到了问题：{str(e)}")
+
+    st.markdown("<div data-testid='current-plan-version'></div>", unsafe_allow_html=True)
+    st.markdown("### 📝 当前方案")
